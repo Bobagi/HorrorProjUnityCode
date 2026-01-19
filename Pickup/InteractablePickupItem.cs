@@ -2,7 +2,8 @@ using UnityEngine;
 
 public enum InteractablePickupItemType
 {
-    Lantern = 0
+    Lantern = 0,
+    Revolver = 1
 }
 
 public sealed class InteractablePickupItem : MonoBehaviour
