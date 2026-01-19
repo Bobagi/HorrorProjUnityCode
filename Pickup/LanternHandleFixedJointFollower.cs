@@ -14,6 +14,10 @@ public sealed class LanternHandleFixedJointFollower : MonoBehaviour
     [SerializeField]
     private Vector3 gripLocalPositionOffset;
 
+    [Header("Rotation Lock")]
+    [SerializeField]
+    private bool lockHandleRotationToHand = true;
+
     [Header("Left Hand Overrides")]
     [SerializeField]
     private Vector3 leftHandGripEulerAnglesRotationOffset = new Vector3(0f, 0f, 180f);
@@ -47,7 +51,8 @@ public sealed class LanternHandleFixedJointFollower : MonoBehaviour
         handSocketTransformToFollow = handSocketTransform;
         isFollowingLeftHandSocket = IsLeftHandSocket(handSocketTransform);
 
-        handleRigidbody.isKinematic = true;
+        handleRigidbody.isKinematic = lockHandleRotationToHand;
+        handleRigidbody.useGravity = false;
         handleRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
 
         RecalculateGripOffsets();
@@ -78,15 +83,26 @@ public sealed class LanternHandleFixedJointFollower : MonoBehaviour
             return;
         }
 
-        Quaternion desiredHandleWorldRotation =
-            cachedHandSocketWorldRotation * Quaternion.Inverse(gripLocalRotationFromHandle);
+        if (lockHandleRotationToHand)
+        {
+            Quaternion desiredHandleWorldRotation =
+                cachedHandSocketWorldRotation * Quaternion.Inverse(gripLocalRotationFromHandle);
 
-        Vector3 desiredHandleWorldPosition =
+            Vector3 desiredHandleWorldPosition =
+                cachedHandSocketWorldPosition
+                - (desiredHandleWorldRotation * gripLocalPositionFromHandle);
+
+            handleRigidbody.MoveRotation(desiredHandleWorldRotation);
+            handleRigidbody.MovePosition(desiredHandleWorldPosition);
+            return;
+        }
+
+        Quaternion currentHandleWorldRotation = handleRigidbody.rotation;
+        Vector3 desiredPositionWithFreeRotation =
             cachedHandSocketWorldPosition
-            - (desiredHandleWorldRotation * gripLocalPositionFromHandle);
+            - (currentHandleWorldRotation * gripLocalPositionFromHandle);
 
-        handleRigidbody.MoveRotation(desiredHandleWorldRotation);
-        handleRigidbody.MovePosition(desiredHandleWorldPosition);
+        handleRigidbody.MovePosition(desiredPositionWithFreeRotation);
     }
 
     private void CacheHandSocketPose()
@@ -129,12 +145,23 @@ public sealed class LanternHandleFixedJointFollower : MonoBehaviour
         Quaternion desiredHandleWorldRotation =
             cachedHandSocketWorldRotation * Quaternion.Inverse(gripLocalRotationFromHandle);
 
-        Vector3 desiredHandleWorldPosition =
-            cachedHandSocketWorldPosition
-            - (desiredHandleWorldRotation * gripLocalPositionFromHandle);
+        if (lockHandleRotationToHand)
+        {
+            Vector3 desiredHandleWorldPosition =
+                cachedHandSocketWorldPosition
+                - (desiredHandleWorldRotation * gripLocalPositionFromHandle);
 
-        handleRigidbody.position = desiredHandleWorldPosition;
-        handleRigidbody.rotation = desiredHandleWorldRotation;
+            handleRigidbody.position = desiredHandleWorldPosition;
+            handleRigidbody.rotation = desiredHandleWorldRotation;
+            return;
+        }
+
+        Quaternion currentHandleWorldRotation = handleRigidbody.rotation;
+        Vector3 desiredPositionWithFreeRotation =
+            cachedHandSocketWorldPosition
+            - (currentHandleWorldRotation * gripLocalPositionFromHandle);
+
+        handleRigidbody.position = desiredPositionWithFreeRotation;
     }
 
     private Vector3 ResolveGripEulerAnglesRotationOffset()
