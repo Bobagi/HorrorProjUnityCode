@@ -37,7 +37,10 @@ public sealed class ProximityCenteredPickupController : MonoBehaviour
     private float defaultPickupAnimationSeconds = 0.35f;
 
     [SerializeField]
-    private RightHandIkPickupAnimator rightHandIkPickupAnimator;
+    private HandIkPickupAnimatorBase rightHandIkPickupAnimator;
+
+    [SerializeField]
+    private HandIkPickupAnimatorBase leftHandIkPickupAnimator;
 
     [Header("Pickup Result Handling")]
     [SerializeField]
@@ -106,8 +109,13 @@ public sealed class ProximityCenteredPickupController : MonoBehaviour
         }
 
         float clampedPickupAnimationSeconds = Mathf.Max(0.01f, pickupAnimationSeconds);
+        PickupHandSide pickupHandSide = ResolvePickupHandSide();
         StartCoroutine(
-            PerformPickupSequenceCoroutine(selectedPickupItem, clampedPickupAnimationSeconds)
+            PerformPickupSequenceCoroutine(
+                selectedPickupItem,
+                clampedPickupAnimationSeconds,
+                pickupHandSide
+            )
         );
     }
 
@@ -118,15 +126,17 @@ public sealed class ProximityCenteredPickupController : MonoBehaviour
 
     private System.Collections.IEnumerator PerformPickupSequenceCoroutine(
         InteractablePickupItem pickupItem,
-        float pickupAnimationSeconds
+        float pickupAnimationSeconds,
+        PickupHandSide pickupHandSide
     )
     {
         isPickupInProgress = true;
         UpdatePromptVisibility(false);
 
-        if (rightHandIkPickupAnimator != null)
+        HandIkPickupAnimatorBase pickupAnimator = ResolvePickupAnimator(pickupHandSide);
+        if (pickupAnimator != null)
         {
-            yield return rightHandIkPickupAnimator.PlayReachToTargetCoroutine(
+            yield return pickupAnimator.PlayReachToTargetCoroutine(
                 pickupItem.PickupInteractionPoint,
                 pickupAnimationSeconds
             );
@@ -138,7 +148,7 @@ public sealed class ProximityCenteredPickupController : MonoBehaviour
 
         if (pickedUpItemTypeHandler != null && pickupItem != null)
         {
-            pickedUpItemTypeHandler.HandlePickedUpItem(pickupItem);
+            pickedUpItemTypeHandler.HandlePickedUpItem(pickupItem, pickupHandSide);
         }
 
         if (pickupItem != null)
@@ -147,6 +157,28 @@ public sealed class ProximityCenteredPickupController : MonoBehaviour
         }
 
         isPickupInProgress = false;
+    }
+
+    private PickupHandSide ResolvePickupHandSide()
+    {
+        if (pickedUpItemTypeHandler == null)
+        {
+            return PickupHandSide.Right;
+        }
+
+        if (!pickedUpItemTypeHandler.IsRightHandItemEquipped)
+        {
+            return PickupHandSide.Right;
+        }
+
+        return PickupHandSide.Left;
+    }
+
+    private HandIkPickupAnimatorBase ResolvePickupAnimator(PickupHandSide pickupHandSide)
+    {
+        return pickupHandSide == PickupHandSide.Left
+            ? leftHandIkPickupAnimator
+            : rightHandIkPickupAnimator;
     }
 
     private InteractablePickupItem FindBestPickupItemCandidate()

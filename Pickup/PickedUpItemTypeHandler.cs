@@ -7,6 +7,9 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
     [SerializeField]
     private Transform rightHandSocketTransform;
 
+    [SerializeField]
+    private Transform leftHandSocketTransform;
+
     [Header("Lantern")]
     [SerializeField]
     private GameObject lanternEquippedPrefab;
@@ -25,6 +28,12 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
     private TwoBoneIKConstraint holdRightArmTwoBoneIkConstraint;
 
     [SerializeField]
+    private Rig leftHoldRigLayer;
+
+    [SerializeField]
+    private TwoBoneIKConstraint holdLeftArmTwoBoneIkConstraint;
+
+    [SerializeField]
     private float holdRigWeightWhenActive = 1f;
 
     [Header("Hold IK Weight Smoothing")]
@@ -41,17 +50,25 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
     private float holdIkWeightSmoothingSeconds = 0.12f;
 
     private GameObject currentlyEquippedRightHandItemGameObject;
-    private float holdIkWeightVelocity;
-    private float currentHoldIkWeight;
+    private GameObject currentlyEquippedLeftHandItemGameObject;
+    private float rightHoldIkWeightVelocity;
+    private float rightCurrentHoldIkWeight;
+    private float leftHoldIkWeightVelocity;
+    private float leftCurrentHoldIkWeight;
     private bool isRightHandItemEquipped;
+    private bool isLeftHandItemEquipped;
 
     public bool IsRightHandItemEquipped => isRightHandItemEquipped;
+    public bool IsLeftHandItemEquipped => isLeftHandItemEquipped;
 
     private void Awake()
     {
         isRightHandItemEquipped = false;
-        holdIkWeightVelocity = 0f;
-        currentHoldIkWeight = 0f;
+        isLeftHandItemEquipped = false;
+        rightHoldIkWeightVelocity = 0f;
+        rightCurrentHoldIkWeight = 0f;
+        leftHoldIkWeightVelocity = 0f;
+        leftCurrentHoldIkWeight = 0f;
 
         if (holdRigLayer != null)
         {
@@ -61,6 +78,16 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         if (holdRightArmTwoBoneIkConstraint != null)
         {
             holdRightArmTwoBoneIkConstraint.weight = 0f;
+        }
+
+        if (leftHoldRigLayer != null)
+        {
+            leftHoldRigLayer.weight = 0f;
+        }
+
+        if (holdLeftArmTwoBoneIkConstraint != null)
+        {
+            holdLeftArmTwoBoneIkConstraint.weight = 0f;
         }
     }
 
@@ -75,65 +102,152 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         {
             holdRightArmTwoBoneIkConstraint.weight = weight;
         }
+
+        if (leftHoldRigLayer != null)
+        {
+            leftHoldRigLayer.weight = weight;
+        }
+
+        if (holdLeftArmTwoBoneIkConstraint != null)
+        {
+            holdLeftArmTwoBoneIkConstraint.weight = weight;
+        }
     }
 
     private void Update()
     {
-        if (!isRightHandItemEquipped)
+        if (!isRightHandItemEquipped && !isLeftHandItemEquipped)
         {
             return;
         }
 
-        float desiredHoldIkWeight = ResolveDesiredHoldIkWeight();
-        currentHoldIkWeight = Mathf.SmoothDamp(
-            currentHoldIkWeight,
-            desiredHoldIkWeight,
-            ref holdIkWeightVelocity,
-            Mathf.Max(0.01f, holdIkWeightSmoothingSeconds)
-        );
-
-        if (holdRigLayer != null)
+        if (isRightHandItemEquipped)
         {
-            holdRigLayer.weight = currentHoldIkWeight;
+            UpdateHoldIkWeight(
+                ref rightCurrentHoldIkWeight,
+                ref rightHoldIkWeightVelocity,
+                holdRigLayer,
+                holdRightArmTwoBoneIkConstraint
+            );
         }
 
-        if (holdRightArmTwoBoneIkConstraint != null)
+        if (isLeftHandItemEquipped)
         {
-            holdRightArmTwoBoneIkConstraint.weight = currentHoldIkWeight;
+            UpdateHoldIkWeight(
+                ref leftCurrentHoldIkWeight,
+                ref leftHoldIkWeightVelocity,
+                leftHoldRigLayer,
+                holdLeftArmTwoBoneIkConstraint
+            );
         }
     }
 
     public void HandlePickedUpItem(InteractablePickupItem pickedUpItem)
+    {
+        HandlePickedUpItem(pickedUpItem, PickupHandSide.Right);
+    }
+
+    public void HandlePickedUpItem(InteractablePickupItem pickedUpItem, PickupHandSide pickupHandSide)
     {
         if (pickedUpItem == null)
         {
             return;
         }
 
-        if (rightHandSocketTransform == null)
-        {
-            return;
-        }
-
         if (pickedUpItem.ItemType == InteractablePickupItemType.Lantern)
         {
-            EquipLantern();
+            EquipLantern(pickupHandSide);
         }
     }
 
-    private void EquipLantern()
+    private void EquipLantern(PickupHandSide pickupHandSide)
     {
         if (lanternEquippedPrefab == null)
         {
             return;
         }
 
+        if (pickupHandSide == PickupHandSide.Left)
+        {
+            EquipLanternToLeftHand();
+            return;
+        }
+
+        EquipLanternToRightHand();
+    }
+
+    private void EquipLanternToRightHand()
+    {
+        if (rightHandSocketTransform == null)
+        {
+            return;
+        }
+
+        GameObject spawnedLanternGameObject = SpawnEquippedLantern(rightHandSocketTransform);
+
         if (currentlyEquippedRightHandItemGameObject != null)
         {
             Destroy(currentlyEquippedRightHandItemGameObject);
-            currentlyEquippedRightHandItemGameObject = null;
         }
 
+        isRightHandItemEquipped = true;
+        rightHoldIkWeightVelocity = 0f;
+        rightCurrentHoldIkWeight = 0f;
+
+        ApplyImmediateHoldIkWeight(
+            ref rightCurrentHoldIkWeight,
+            holdRigLayer,
+            holdRightArmTwoBoneIkConstraint
+        );
+
+        LanternHandleFixedJointFollower handleFollower =
+            spawnedLanternGameObject.GetComponentInChildren<LanternHandleFixedJointFollower>();
+
+        if (handleFollower != null)
+        {
+            handleFollower.BindToHandSocket(rightHandSocketTransform);
+        }
+
+        currentlyEquippedRightHandItemGameObject = spawnedLanternGameObject;
+    }
+
+    private void EquipLanternToLeftHand()
+    {
+        if (leftHandSocketTransform == null)
+        {
+            return;
+        }
+
+        GameObject spawnedLanternGameObject = SpawnEquippedLantern(leftHandSocketTransform);
+
+        if (currentlyEquippedLeftHandItemGameObject != null)
+        {
+            Destroy(currentlyEquippedLeftHandItemGameObject);
+        }
+
+        isLeftHandItemEquipped = true;
+        leftHoldIkWeightVelocity = 0f;
+        leftCurrentHoldIkWeight = 0f;
+
+        ApplyImmediateHoldIkWeight(
+            ref leftCurrentHoldIkWeight,
+            leftHoldRigLayer,
+            holdLeftArmTwoBoneIkConstraint
+        );
+
+        LanternHandleFixedJointFollower handleFollower =
+            spawnedLanternGameObject.GetComponentInChildren<LanternHandleFixedJointFollower>();
+
+        if (handleFollower != null)
+        {
+            handleFollower.BindToHandSocket(leftHandSocketTransform);
+        }
+
+        currentlyEquippedLeftHandItemGameObject = spawnedLanternGameObject;
+    }
+
+    private GameObject SpawnEquippedLantern(Transform handSocketTransform)
+    {
         GameObject spawnedLanternGameObject = Instantiate(lanternEquippedPrefab);
 
         BoxCollider spawnedLanternBoxCollider =
@@ -143,39 +257,60 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
             spawnedLanternBoxCollider.enabled = false;
         }
 
-        spawnedLanternGameObject.transform.position = rightHandSocketTransform.TransformPoint(
+        spawnedLanternGameObject.transform.position = handSocketTransform.TransformPoint(
             lanternLocalPositionOffset
         );
         spawnedLanternGameObject.transform.rotation =
-            rightHandSocketTransform.rotation * Quaternion.Euler(lanternLocalEulerAnglesOffset);
+            handSocketTransform.rotation * Quaternion.Euler(lanternLocalEulerAnglesOffset);
 
-        currentlyEquippedRightHandItemGameObject = spawnedLanternGameObject;
+        return spawnedLanternGameObject;
+    }
 
-        isRightHandItemEquipped = true;
-        holdIkWeightVelocity = 0f;
-        currentHoldIkWeight = 0f;
-
+    private void UpdateHoldIkWeight(
+        ref float currentHoldIkWeight,
+        ref float holdIkWeightVelocity,
+        Rig handHoldRigLayer,
+        TwoBoneIKConstraint holdArmTwoBoneIkConstraint
+    )
+    {
         float desiredHoldIkWeight = ResolveDesiredHoldIkWeight();
+        currentHoldIkWeight = Mathf.SmoothDamp(
+            currentHoldIkWeight,
+            desiredHoldIkWeight,
+            ref holdIkWeightVelocity,
+            Mathf.Max(0.01f, holdIkWeightSmoothingSeconds)
+        );
 
-        if (holdRigLayer != null)
+        if (handHoldRigLayer != null)
         {
-            holdRigLayer.weight = desiredHoldIkWeight;
+            handHoldRigLayer.weight = currentHoldIkWeight;
         }
 
-        if (holdRightArmTwoBoneIkConstraint != null)
+        if (holdArmTwoBoneIkConstraint != null)
         {
-            holdRightArmTwoBoneIkConstraint.weight = desiredHoldIkWeight;
+            holdArmTwoBoneIkConstraint.weight = currentHoldIkWeight;
+        }
+    }
+
+    private void ApplyImmediateHoldIkWeight(
+        ref float currentHoldIkWeight,
+        Rig handHoldRigLayer,
+        TwoBoneIKConstraint holdArmTwoBoneIkConstraint
+    )
+    {
+        float desiredHoldIkWeight = ResolveDesiredHoldIkWeight();
+
+        if (handHoldRigLayer != null)
+        {
+            handHoldRigLayer.weight = desiredHoldIkWeight;
+        }
+
+        if (holdArmTwoBoneIkConstraint != null)
+        {
+            holdArmTwoBoneIkConstraint.weight = desiredHoldIkWeight;
         }
 
         currentHoldIkWeight = desiredHoldIkWeight;
-
-        LanternHandleFixedJointFollower handleFollower =
-            spawnedLanternGameObject.GetComponentInChildren<LanternHandleFixedJointFollower>();
-
-        if (handleFollower != null)
-        {
-            handleFollower.BindToHandSocket(rightHandSocketTransform);
-        }
     }
 
     private float ResolveDesiredHoldIkWeight()
@@ -187,4 +322,10 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
 
         return thirdPersonController.Grounded ? holdIkWeightWhenGrounded : holdIkWeightWhenAirborne;
     }
+}
+
+public enum PickupHandSide
+{
+    Right,
+    Left
 }

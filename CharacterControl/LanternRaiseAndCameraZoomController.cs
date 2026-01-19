@@ -23,6 +23,9 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
     private Transform holdRightHandIkTargetTransform;
 
     [SerializeField]
+    private Transform holdLeftHandIkTargetTransform;
+
+    [SerializeField]
     private Transform holdNormalReferenceTransform;
 
     [SerializeField]
@@ -92,19 +95,20 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
         }
 
         isRaiseActive = false;
-        MoveHoldTargetToNormal();
+        MoveHoldTargetsToNormal();
         UpdateCameraZoom(false);
     }
 
     private void Update()
     {
-        bool isLanternEquipped =
-            pickedUpItemTypeHandler != null && pickedUpItemTypeHandler.IsRightHandItemEquipped;
+        bool isLanternEquipped = pickedUpItemTypeHandler != null
+            && (pickedUpItemTypeHandler.IsRightHandItemEquipped
+                || pickedUpItemTypeHandler.IsLeftHandItemEquipped);
 
         if (!isLanternEquipped)
         {
             isRaiseActive = false;
-            MoveHoldTargetToNormal();
+            MoveHoldTargetsToNormal();
             UpdateCameraZoom(false);
             return;
         }
@@ -116,11 +120,11 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
         if (isRaiseActive)
         {
-            MoveHoldTargetToRaised();
+            MoveHoldTargetsToRaised();
         }
         else
         {
-            MoveHoldTargetToNormal();
+            MoveHoldTargetsToNormal();
         }
 
         UpdateCameraZoom(isRaiseActive);
@@ -147,19 +151,21 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
             isRaiseActive = false;
     }
 
-    private void MoveHoldTargetToNormal()
+    private void MoveHoldTargetsToNormal()
     {
-        MoveHoldTargetTowards(holdNormalReferenceTransform);
+        MoveHoldTargetTowards(holdRightHandIkTargetTransform, holdNormalReferenceTransform);
+        MoveHoldTargetTowards(holdLeftHandIkTargetTransform, holdNormalReferenceTransform);
     }
 
-    private void MoveHoldTargetToRaised()
+    private void MoveHoldTargetsToRaised()
     {
-        MoveHoldTargetTowards(holdRaisedReferenceTransform);
+        MoveHoldTargetTowards(holdRightHandIkTargetTransform, holdRaisedReferenceTransform);
+        MoveHoldTargetTowards(holdLeftHandIkTargetTransform, holdRaisedReferenceTransform);
     }
 
-    private void MoveHoldTargetTowards(Transform referenceTransform)
+    private void MoveHoldTargetTowards(Transform holdTargetTransform, Transform referenceTransform)
     {
-        if (holdRightHandIkTargetTransform == null || referenceTransform == null)
+        if (holdTargetTransform == null || referenceTransform == null)
         {
             return;
         }
@@ -167,14 +173,14 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
         float smoothing = Mathf.Max(0.01f, holdTargetTransitionSeconds);
         float t = 1f - Mathf.Exp(-Time.deltaTime / smoothing);
 
-        holdRightHandIkTargetTransform.position = Vector3.Lerp(
-            holdRightHandIkTargetTransform.position,
+        holdTargetTransform.position = Vector3.Lerp(
+            holdTargetTransform.position,
             referenceTransform.position,
             t
         );
 
-        holdRightHandIkTargetTransform.rotation = Quaternion.Slerp(
-            holdRightHandIkTargetTransform.rotation,
+        holdTargetTransform.rotation = Quaternion.Slerp(
+            holdTargetTransform.rotation,
             referenceTransform.rotation,
             t
         );
