@@ -147,7 +147,10 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         HandlePickedUpItem(pickedUpItem, PickupHandSide.Right);
     }
 
-    public void HandlePickedUpItem(InteractablePickupItem pickedUpItem, PickupHandSide pickupHandSide)
+    public void HandlePickedUpItem(
+        InteractablePickupItem pickedUpItem,
+        PickupHandSide pickupHandSide
+    )
     {
         if (pickedUpItem == null)
         {
@@ -327,5 +330,5 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
 public enum PickupHandSide
 {
     Right,
-    Left
+    Left,
 }

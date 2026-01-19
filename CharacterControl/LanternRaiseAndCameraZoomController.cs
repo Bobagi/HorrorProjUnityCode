@@ -20,16 +20,10 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
     [Header("Hold IK Transforms")]
     [SerializeField]
-    private Transform holdRightHandIkTargetTransform;
+    private HandIkPickupAnimatorBase rightHandIkPickupAnimator;
 
     [SerializeField]
-    private Transform holdLeftHandIkTargetTransform;
-
-    [SerializeField]
-    private Transform holdNormalReferenceTransform;
-
-    [SerializeField]
-    private Transform holdRaisedReferenceTransform;
+    private HandIkPickupAnimatorBase leftHandIkPickupAnimator;
 
     [Header("Force max IK weight")]
     [SerializeField]
@@ -101,9 +95,12 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
     private void Update()
     {
-        bool isLanternEquipped = pickedUpItemTypeHandler != null
-            && (pickedUpItemTypeHandler.IsRightHandItemEquipped
-                || pickedUpItemTypeHandler.IsLeftHandItemEquipped);
+        bool isLanternEquipped =
+            pickedUpItemTypeHandler != null
+            && (
+                pickedUpItemTypeHandler.IsRightHandItemEquipped
+                || pickedUpItemTypeHandler.IsLeftHandItemEquipped
+            );
 
         if (!isLanternEquipped)
         {
@@ -153,14 +150,44 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
     private void MoveHoldTargetsToNormal()
     {
-        MoveHoldTargetTowards(holdRightHandIkTargetTransform, holdNormalReferenceTransform);
-        MoveHoldTargetTowards(holdLeftHandIkTargetTransform, holdNormalReferenceTransform);
+        MoveHoldTargetTowards(
+            rightHandIkPickupAnimator != null
+                ? rightHandIkPickupAnimator.HandIkTargetTransform
+                : null,
+            rightHandIkPickupAnimator != null
+                ? rightHandIkPickupAnimator.HandNormalPositionReferenceTransform
+                : null
+        );
+
+        MoveHoldTargetTowards(
+            leftHandIkPickupAnimator != null
+                ? leftHandIkPickupAnimator.HandIkTargetTransform
+                : null,
+            leftHandIkPickupAnimator != null
+                ? leftHandIkPickupAnimator.HandNormalPositionReferenceTransform
+                : null
+        );
     }
 
     private void MoveHoldTargetsToRaised()
     {
-        MoveHoldTargetTowards(holdRightHandIkTargetTransform, holdRaisedReferenceTransform);
-        MoveHoldTargetTowards(holdLeftHandIkTargetTransform, holdRaisedReferenceTransform);
+        MoveHoldTargetTowards(
+            rightHandIkPickupAnimator != null
+                ? rightHandIkPickupAnimator.HandIkTargetTransform
+                : null,
+            rightHandIkPickupAnimator != null
+                ? rightHandIkPickupAnimator.HandRaisedPositionReferenceTransform
+                : null
+        );
+
+        MoveHoldTargetTowards(
+            leftHandIkPickupAnimator != null
+                ? leftHandIkPickupAnimator.HandIkTargetTransform
+                : null,
+            leftHandIkPickupAnimator != null
+                ? leftHandIkPickupAnimator.HandRaisedPositionReferenceTransform
+                : null
+        );
     }
 
     private void MoveHoldTargetTowards(Transform holdTargetTransform, Transform referenceTransform)

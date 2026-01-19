@@ -2,10 +2,17 @@ using UnityEngine;
 
 public sealed class LanternHandleFixedJointFollower : MonoBehaviour
 {
-    [SerializeField] private Rigidbody handleRigidbody;
-    [SerializeField] private Transform lanternHandleGripTransform;
-    [SerializeField] private Vector3 gripEulerAnglesRotationOffset;
-    [SerializeField] private Vector3 gripLocalPositionOffset;
+    [SerializeField]
+    private Rigidbody handleRigidbody;
+
+    [SerializeField]
+    private Transform lanternHandleGripTransform;
+
+    [SerializeField]
+    private Vector3 gripEulerAnglesRotationOffset;
+
+    [SerializeField]
+    private Vector3 gripLocalPositionOffset;
 
     private Transform handSocketTransformToFollow;
 
@@ -20,7 +27,11 @@ public sealed class LanternHandleFixedJointFollower : MonoBehaviour
 
     public void BindToHandSocket(Transform handSocketTransform)
     {
-        if (handSocketTransform == null || handleRigidbody == null || lanternHandleGripTransform == null)
+        if (
+            handSocketTransform == null
+            || handleRigidbody == null
+            || lanternHandleGripTransform == null
+        )
         {
             return;
         }
@@ -62,7 +73,8 @@ public sealed class LanternHandleFixedJointFollower : MonoBehaviour
             cachedHandSocketWorldRotation * Quaternion.Inverse(gripLocalRotationFromHandle);
 
         Vector3 desiredHandleWorldPosition =
-            cachedHandSocketWorldPosition - (desiredHandleWorldRotation * gripLocalPositionFromHandle);
+            cachedHandSocketWorldPosition
+            - (desiredHandleWorldRotation * gripLocalPositionFromHandle);
 
         handleRigidbody.MoveRotation(desiredHandleWorldRotation);
         handleRigidbody.MovePosition(desiredHandleWorldPosition);
@@ -76,17 +88,17 @@ public sealed class LanternHandleFixedJointFollower : MonoBehaviour
 
     private bool OffsetsChanged()
     {
-        return gripEulerAnglesRotationOffset != lastGripEulerAnglesRotationOffset ||
-               gripLocalPositionOffset != lastGripLocalPositionOffset;
+        return gripEulerAnglesRotationOffset != lastGripEulerAnglesRotationOffset
+            || gripLocalPositionOffset != lastGripLocalPositionOffset;
     }
 
     private void RecalculateGripOffsets()
     {
-        Vector3 gripLocalPositionWithoutOffset =
-            handleRigidbody.transform.InverseTransformPoint(lanternHandleGripTransform.position);
+        Vector3 gripLocalPositionWithoutOffset = handleRigidbody.transform.InverseTransformPoint(
+            lanternHandleGripTransform.position
+        );
 
-        gripLocalPositionFromHandle =
-            gripLocalPositionWithoutOffset + gripLocalPositionOffset;
+        gripLocalPositionFromHandle = gripLocalPositionWithoutOffset + gripLocalPositionOffset;
 
         Quaternion gripWorldRotation =
             lanternHandleGripTransform.rotation * Quaternion.Euler(gripEulerAnglesRotationOffset);
@@ -104,7 +116,8 @@ public sealed class LanternHandleFixedJointFollower : MonoBehaviour
             cachedHandSocketWorldRotation * Quaternion.Inverse(gripLocalRotationFromHandle);
 
         Vector3 desiredHandleWorldPosition =
-            cachedHandSocketWorldPosition - (desiredHandleWorldRotation * gripLocalPositionFromHandle);
+            cachedHandSocketWorldPosition
+            - (desiredHandleWorldRotation * gripLocalPositionFromHandle);
 
         handleRigidbody.position = desiredHandleWorldPosition;
         handleRigidbody.rotation = desiredHandleWorldRotation;

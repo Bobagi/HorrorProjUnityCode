@@ -1,5 +1,3 @@
 using UnityEngine;
 
-public sealed class RightHandIkPickupAnimator : HandIkPickupAnimatorBase
-{
-}
+public sealed class RightHandIkPickupAnimator : HandIkPickupAnimatorBase { }
