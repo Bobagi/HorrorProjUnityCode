@@ -20,6 +20,16 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
     [SerializeField]
     private Vector3 lanternLocalEulerAnglesOffset;
 
+    [Header("Revolver")]
+    [SerializeField]
+    private GameObject revolverEquippedPrefab;
+
+    [SerializeField]
+    private Vector3 revolverLocalPositionOffset;
+
+    [SerializeField]
+    private Vector3 revolverLocalEulerAnglesOffset;
+
     [Header("Hold IK")]
     [SerializeField]
     private Rig holdRigLayer;
@@ -160,7 +170,70 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         if (pickedUpItem.ItemType == InteractablePickupItemType.Lantern)
         {
             EquipLantern(pickupHandSide);
+            return;
         }
+
+        if (pickedUpItem.ItemType == InteractablePickupItemType.Revolver)
+        {
+            EquipRevolver(pickupHandSide);
+        }
+    }
+
+    private void EquipRevolver(PickupHandSide pickupHandSide)
+    {
+        if (revolverEquippedPrefab == null)
+        {
+            return;
+        }
+
+        Transform handSocketTransform = pickupHandSide == PickupHandSide.Left
+            ? leftHandSocketTransform
+            : rightHandSocketTransform;
+
+        if (handSocketTransform == null)
+        {
+            return;
+        }
+
+        GameObject spawnedRevolverGameObject = SpawnEquippedRevolver(handSocketTransform);
+
+        if (pickupHandSide == PickupHandSide.Left)
+        {
+            if (currentlyEquippedLeftHandItemGameObject != null)
+            {
+                Destroy(currentlyEquippedLeftHandItemGameObject);
+            }
+
+            isLeftHandItemEquipped = true;
+            leftHoldIkWeightVelocity = 0f;
+            leftCurrentHoldIkWeight = 0f;
+
+            ApplyImmediateHoldIkWeight(
+                ref leftCurrentHoldIkWeight,
+                leftHoldRigLayer,
+                holdLeftArmTwoBoneIkConstraint
+            );
+
+            currentlyEquippedLeftHandItemGameObject = spawnedRevolverGameObject;
+            return;
+        }
+
+        if (currentlyEquippedRightHandItemGameObject != null)
+        {
+            Destroy(currentlyEquippedRightHandItemGameObject);
+        }
+
+        isRightHandItemEquipped = true;
+        rightHoldIkWeightVelocity = 0f;
+        rightCurrentHoldIkWeight = 0f;
+
+        ApplyImmediateHoldIkWeight(
+            ref rightCurrentHoldIkWeight,
+            holdRigLayer,
+            holdRightArmTwoBoneIkConstraint
+        );
+
+        currentlyEquippedRightHandItemGameObject = spawnedRevolverGameObject;
     }
 
     private void EquipLantern(PickupHandSide pickupHandSide)
@@ -267,6 +340,18 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
             handSocketTransform.rotation * Quaternion.Euler(lanternLocalEulerAnglesOffset);
 
         return spawnedLanternGameObject;
+    }
+
+    private GameObject SpawnEquippedRevolver(Transform handSocketTransform)
+    {
+        GameObject spawnedRevolverGameObject = Instantiate(revolverEquippedPrefab);
+
+        spawnedRevolverGameObject.transform.SetParent(handSocketTransform, false);
+        spawnedRevolverGameObject.transform.localPosition = revolverLocalPositionOffset;
+        spawnedRevolverGameObject.transform.localRotation =
+            Quaternion.Euler(revolverLocalEulerAnglesOffset);
+
+        return spawnedRevolverGameObject;
     }
 
     private void UpdateHoldIkWeight(
