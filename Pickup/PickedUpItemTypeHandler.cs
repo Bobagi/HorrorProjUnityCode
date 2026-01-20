@@ -10,26 +10,6 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
     [SerializeField]
     private Transform leftHandSocketTransform;
 
-    [Header("Lantern")]
-    [SerializeField]
-    private GameObject lanternEquippedPrefab;
-
-    [SerializeField]
-    private Vector3 lanternLocalPositionOffset;
-
-    [SerializeField]
-    private Vector3 lanternLocalEulerAnglesOffset;
-
-    [Header("Revolver")]
-    [SerializeField]
-    private GameObject revolverEquippedPrefab;
-
-    [SerializeField]
-    private Vector3 revolverLocalPositionOffset;
-
-    [SerializeField]
-    private Vector3 revolverLocalEulerAnglesOffset;
-
     [Header("Hold IK")]
     [SerializeField]
     private Rig holdRigLayer;
@@ -169,19 +149,19 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
 
         if (pickedUpItem.ItemType == InteractablePickupItemType.Lantern)
         {
-            EquipLantern(pickupHandSide);
+            EquipLantern(pickedUpItem, pickupHandSide);
             return;
         }
 
         if (pickedUpItem.ItemType == InteractablePickupItemType.Revolver)
         {
-            EquipRevolver(pickupHandSide);
+            EquipRevolver(pickedUpItem, pickupHandSide);
         }
     }
 
-    private void EquipRevolver(PickupHandSide pickupHandSide)
+    private void EquipRevolver(InteractablePickupItem pickedUpItem, PickupHandSide pickupHandSide)
     {
-        if (revolverEquippedPrefab == null)
+        if (pickedUpItem == null || pickedUpItem.EquippedPrefab == null)
         {
             return;
         }
@@ -195,7 +175,10 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
             return;
         }
 
-        GameObject spawnedRevolverGameObject = SpawnEquippedRevolver(handSocketTransform);
+        GameObject spawnedRevolverGameObject = SpawnEquippedRevolver(
+            pickedUpItem.EquippedPrefab,
+            handSocketTransform
+        );
 
         if (pickupHandSide == PickupHandSide.Left)
         {
@@ -236,30 +219,33 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         currentlyEquippedRightHandItemGameObject = spawnedRevolverGameObject;
     }
 
-    private void EquipLantern(PickupHandSide pickupHandSide)
+    private void EquipLantern(InteractablePickupItem pickedUpItem, PickupHandSide pickupHandSide)
     {
-        if (lanternEquippedPrefab == null)
+        if (pickedUpItem == null || pickedUpItem.EquippedPrefab == null)
         {
             return;
         }
 
         if (pickupHandSide == PickupHandSide.Left)
         {
-            EquipLanternToLeftHand();
+            EquipLanternToLeftHand(pickedUpItem.EquippedPrefab);
             return;
         }
 
-        EquipLanternToRightHand();
+        EquipLanternToRightHand(pickedUpItem.EquippedPrefab);
     }
 
-    private void EquipLanternToRightHand()
+    private void EquipLanternToRightHand(GameObject equippedPrefab)
     {
         if (rightHandSocketTransform == null)
         {
             return;
         }
 
-        GameObject spawnedLanternGameObject = SpawnEquippedLantern(rightHandSocketTransform);
+        GameObject spawnedLanternGameObject = SpawnEquippedLantern(
+            equippedPrefab,
+            rightHandSocketTransform
+        );
 
         if (currentlyEquippedRightHandItemGameObject != null)
         {
@@ -287,14 +273,17 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         currentlyEquippedRightHandItemGameObject = spawnedLanternGameObject;
     }
 
-    private void EquipLanternToLeftHand()
+    private void EquipLanternToLeftHand(GameObject equippedPrefab)
     {
         if (leftHandSocketTransform == null)
         {
             return;
         }
 
-        GameObject spawnedLanternGameObject = SpawnEquippedLantern(leftHandSocketTransform);
+        GameObject spawnedLanternGameObject = SpawnEquippedLantern(
+            equippedPrefab,
+            leftHandSocketTransform
+        );
 
         if (currentlyEquippedLeftHandItemGameObject != null)
         {
@@ -322,9 +311,12 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         currentlyEquippedLeftHandItemGameObject = spawnedLanternGameObject;
     }
 
-    private GameObject SpawnEquippedLantern(Transform handSocketTransform)
+    private GameObject SpawnEquippedLantern(
+        GameObject equippedPrefab,
+        Transform handSocketTransform
+    )
     {
-        GameObject spawnedLanternGameObject = Instantiate(lanternEquippedPrefab);
+        GameObject spawnedLanternGameObject = Instantiate(equippedPrefab);
 
         BoxCollider spawnedLanternBoxCollider =
             spawnedLanternGameObject.GetComponent<BoxCollider>();
@@ -333,23 +325,20 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
             spawnedLanternBoxCollider.enabled = false;
         }
 
-        spawnedLanternGameObject.transform.position = handSocketTransform.TransformPoint(
-            lanternLocalPositionOffset
-        );
-        spawnedLanternGameObject.transform.rotation =
-            handSocketTransform.rotation * Quaternion.Euler(lanternLocalEulerAnglesOffset);
+        spawnedLanternGameObject.transform.position = handSocketTransform.position;
+        spawnedLanternGameObject.transform.rotation = handSocketTransform.rotation;
 
         return spawnedLanternGameObject;
     }
 
-    private GameObject SpawnEquippedRevolver(Transform handSocketTransform)
+    private GameObject SpawnEquippedRevolver(
+        GameObject equippedPrefab,
+        Transform handSocketTransform
+    )
     {
-        GameObject spawnedRevolverGameObject = Instantiate(revolverEquippedPrefab);
+        GameObject spawnedRevolverGameObject = Instantiate(equippedPrefab);
 
         spawnedRevolverGameObject.transform.SetParent(handSocketTransform, false);
-        spawnedRevolverGameObject.transform.localPosition = revolverLocalPositionOffset;
-        spawnedRevolverGameObject.transform.localRotation =
-            Quaternion.Euler(revolverLocalEulerAnglesOffset);
 
         return spawnedRevolverGameObject;
     }
