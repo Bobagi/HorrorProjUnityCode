@@ -24,7 +24,7 @@ public sealed class InteractablePickupItem : MonoBehaviour
     private Transform pickupInteractionPoint;
 
     [SerializeField]
-    private GameObject equippedPrefab;
+    private GameObject pickupItemPrefab;
 
     [SerializeField]
     private EquippedItemFollowMode equippedItemFollowMode = EquippedItemFollowMode.AttachToSocket;
@@ -38,7 +38,7 @@ public sealed class InteractablePickupItem : MonoBehaviour
     public string ItemDisplayName => itemDisplayName;
     public Transform PickupInteractionPoint =>
         pickupInteractionPoint != null ? pickupInteractionPoint : transform;
-    public GameObject EquippedPrefab => equippedPrefab;
+    public GameObject PickupItemPrefab => pickupItemPrefab;
     public EquippedItemFollowMode EquippedItemFollowMode => equippedItemFollowMode;
 
     public bool CanBePickedUp()
