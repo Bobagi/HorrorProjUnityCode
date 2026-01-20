@@ -6,11 +6,20 @@ public enum InteractablePickupItemType
     Revolver = 1
 }
 
+public enum EquippedItemFollowMode
+{
+    AttachToSocket = 0,
+    PhysicsFollower = 1
+}
+
 public sealed class InteractablePickupItem : MonoBehaviour
 {
     [SerializeField] private InteractablePickupItemType itemType = InteractablePickupItemType.Lantern;
     [SerializeField] private string itemDisplayName = "Lantern";
     [SerializeField] private Transform pickupInteractionPoint;
+    [SerializeField] private GameObject equippedPrefab;
+    [SerializeField] private EquippedItemFollowMode equippedItemFollowMode =
+        EquippedItemFollowMode.AttachToSocket;
     [SerializeField] private bool destroyGameObjectAfterPickup = true;
 
     private bool hasBeenPickedUp;
@@ -18,6 +27,8 @@ public sealed class InteractablePickupItem : MonoBehaviour
     public InteractablePickupItemType ItemType => itemType;
     public string ItemDisplayName => itemDisplayName;
     public Transform PickupInteractionPoint => pickupInteractionPoint != null ? pickupInteractionPoint : transform;
+    public GameObject EquippedPrefab => equippedPrefab;
+    public EquippedItemFollowMode EquippedItemFollowMode => equippedItemFollowMode;
 
     public bool CanBePickedUp()
     {
