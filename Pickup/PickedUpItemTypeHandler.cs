@@ -10,16 +10,6 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
     [SerializeField]
     private Transform leftHandSocketTransform;
 
-    [Header("Lantern")]
-    [SerializeField]
-    private GameObject lanternEquippedPrefab;
-
-    [SerializeField]
-    private Vector3 lanternLocalPositionOffset;
-
-    [SerializeField]
-    private Vector3 lanternLocalEulerAnglesOffset;
-
     [Header("Hold IK")]
     [SerializeField]
     private Rig holdRigLayer;
@@ -157,36 +147,36 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
             return;
         }
 
-        if (pickedUpItem.ItemType == InteractablePickupItemType.Lantern)
-        {
-            EquipLantern(pickupHandSide);
-        }
+        EquipItem(pickedUpItem, pickupHandSide);
     }
 
-    private void EquipLantern(PickupHandSide pickupHandSide)
+    private void EquipItem(InteractablePickupItem pickedUpItem, PickupHandSide pickupHandSide)
     {
-        if (lanternEquippedPrefab == null)
+        if (pickedUpItem == null || pickedUpItem.EquippedPrefab == null)
         {
             return;
         }
 
         if (pickupHandSide == PickupHandSide.Left)
         {
-            EquipLanternToLeftHand();
+            EquipItemToLeftHand(pickedUpItem);
             return;
         }
 
-        EquipLanternToRightHand();
+        EquipItemToRightHand(pickedUpItem);
     }
 
-    private void EquipLanternToRightHand()
+    private void EquipItemToRightHand(InteractablePickupItem pickedUpItem)
     {
         if (rightHandSocketTransform == null)
         {
             return;
         }
 
-        GameObject spawnedLanternGameObject = SpawnEquippedLantern(rightHandSocketTransform);
+        GameObject spawnedItemGameObject = SpawnEquippedItem(
+            pickedUpItem,
+            rightHandSocketTransform
+        );
 
         if (currentlyEquippedRightHandItemGameObject != null)
         {
@@ -203,25 +193,18 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
             holdRightArmTwoBoneIkConstraint
         );
 
-        LanternHandleFixedJointFollower handleFollower =
-            spawnedLanternGameObject.GetComponentInChildren<LanternHandleFixedJointFollower>();
-
-        if (handleFollower != null)
-        {
-            handleFollower.BindToHandSocket(rightHandSocketTransform);
-        }
-
-        currentlyEquippedRightHandItemGameObject = spawnedLanternGameObject;
+        BindFollowerIfPresent(spawnedItemGameObject, pickedUpItem, rightHandSocketTransform);
+        currentlyEquippedRightHandItemGameObject = spawnedItemGameObject;
     }
 
-    private void EquipLanternToLeftHand()
+    private void EquipItemToLeftHand(InteractablePickupItem pickedUpItem)
     {
         if (leftHandSocketTransform == null)
         {
             return;
         }
 
-        GameObject spawnedLanternGameObject = SpawnEquippedLantern(leftHandSocketTransform);
+        GameObject spawnedItemGameObject = SpawnEquippedItem(pickedUpItem, leftHandSocketTransform);
 
         if (currentlyEquippedLeftHandItemGameObject != null)
         {
@@ -238,35 +221,75 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
             holdLeftArmTwoBoneIkConstraint
         );
 
+        BindFollowerIfPresent(spawnedItemGameObject, pickedUpItem, leftHandSocketTransform);
+        currentlyEquippedLeftHandItemGameObject = spawnedItemGameObject;
+    }
+
+    private GameObject SpawnEquippedItem(
+        InteractablePickupItem pickedUpItem,
+        Transform handSocketTransform
+    )
+    {
+        if (pickedUpItem == null || pickedUpItem.EquippedPrefab == null)
+        {
+            return null;
+        }
+
+        GameObject spawnedItemGameObject = Instantiate(pickedUpItem.EquippedPrefab);
+        DisableItemColliders(spawnedItemGameObject);
+
+        if (pickedUpItem.EquippedItemFollowMode == EquippedItemFollowMode.AttachToSocket)
+        {
+            spawnedItemGameObject.transform.SetParent(handSocketTransform, false);
+            spawnedItemGameObject.transform.localPosition = Vector3.zero;
+            spawnedItemGameObject.transform.localRotation = Quaternion.identity;
+        }
+        else
+        {
+            spawnedItemGameObject.transform.position = handSocketTransform.position;
+            spawnedItemGameObject.transform.rotation = handSocketTransform.rotation;
+        }
+
+        return spawnedItemGameObject;
+    }
+
+    private static void DisableItemColliders(GameObject spawnedItemGameObject)
+    {
+        if (spawnedItemGameObject == null)
+        {
+            return;
+        }
+
+        Collider[] colliders = spawnedItemGameObject.GetComponentsInChildren<Collider>(true);
+        foreach (Collider collider in colliders)
+        {
+            collider.enabled = false;
+        }
+    }
+
+    private static void BindFollowerIfPresent(
+        GameObject spawnedItemGameObject,
+        InteractablePickupItem pickedUpItem,
+        Transform handSocketTransform
+    )
+    {
+        if (
+            spawnedItemGameObject == null
+            || pickedUpItem == null
+            || pickedUpItem.EquippedItemFollowMode != EquippedItemFollowMode.PhysicsFollower
+            || handSocketTransform == null
+        )
+        {
+            return;
+        }
+
         LanternHandleFixedJointFollower handleFollower =
-            spawnedLanternGameObject.GetComponentInChildren<LanternHandleFixedJointFollower>();
+            spawnedItemGameObject.GetComponentInChildren<LanternHandleFixedJointFollower>();
 
         if (handleFollower != null)
         {
-            handleFollower.BindToHandSocket(leftHandSocketTransform);
+            handleFollower.BindToHandSocket(handSocketTransform);
         }
-
-        currentlyEquippedLeftHandItemGameObject = spawnedLanternGameObject;
-    }
-
-    private GameObject SpawnEquippedLantern(Transform handSocketTransform)
-    {
-        GameObject spawnedLanternGameObject = Instantiate(lanternEquippedPrefab);
-
-        BoxCollider spawnedLanternBoxCollider =
-            spawnedLanternGameObject.GetComponent<BoxCollider>();
-        if (spawnedLanternBoxCollider != null)
-        {
-            spawnedLanternBoxCollider.enabled = false;
-        }
-
-        spawnedLanternGameObject.transform.position = handSocketTransform.TransformPoint(
-            lanternLocalPositionOffset
-        );
-        spawnedLanternGameObject.transform.rotation =
-            handSocketTransform.rotation * Quaternion.Euler(lanternLocalEulerAnglesOffset);
-
-        return spawnedLanternGameObject;
     }
 
     private void UpdateHoldIkWeight(
