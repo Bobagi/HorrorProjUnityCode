@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public sealed class LanternHandleFixedJointFollower : MonoBehaviour
+public sealed class LanternHandleFixedJointFollower : MonoBehaviour, IHandSocketBindable
 {
     [SerializeField]
     private Rigidbody handleRigidbody;

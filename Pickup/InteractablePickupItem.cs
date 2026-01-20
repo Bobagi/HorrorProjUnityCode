@@ -11,6 +11,7 @@ public sealed class InteractablePickupItem : MonoBehaviour
     [SerializeField] private InteractablePickupItemType itemType = InteractablePickupItemType.Lantern;
     [SerializeField] private string itemDisplayName = "Lantern";
     [SerializeField] private GameObject equippedPrefab;
+    [SerializeField] private bool disableCollidersOnEquip = true;
     [SerializeField] private Transform pickupInteractionPoint;
     [SerializeField] private bool destroyGameObjectAfterPickup = true;
 
@@ -19,6 +20,7 @@ public sealed class InteractablePickupItem : MonoBehaviour
     public InteractablePickupItemType ItemType => itemType;
     public string ItemDisplayName => itemDisplayName;
     public GameObject EquippedPrefab => equippedPrefab;
+    public bool DisableCollidersOnEquip => disableCollidersOnEquip;
     public Transform PickupInteractionPoint => pickupInteractionPoint != null ? pickupInteractionPoint : transform;
 
     public bool CanBePickedUp()

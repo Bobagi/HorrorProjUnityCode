@@ -147,19 +147,10 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
             return;
         }
 
-        if (pickedUpItem.ItemType == InteractablePickupItemType.Lantern)
-        {
-            EquipLantern(pickedUpItem, pickupHandSide);
-            return;
-        }
-
-        if (pickedUpItem.ItemType == InteractablePickupItemType.Revolver)
-        {
-            EquipRevolver(pickedUpItem, pickupHandSide);
-        }
+        EquipItem(pickedUpItem, pickupHandSide);
     }
 
-    private void EquipRevolver(InteractablePickupItem pickedUpItem, PickupHandSide pickupHandSide)
+    private void EquipItem(InteractablePickupItem pickedUpItem, PickupHandSide pickupHandSide)
     {
         if (pickedUpItem == null || pickedUpItem.EquippedPrefab == null)
         {
@@ -175,11 +166,52 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
             return;
         }
 
-        GameObject spawnedRevolverGameObject = SpawnEquippedRevolver(
-            pickedUpItem.EquippedPrefab,
-            handSocketTransform
-        );
+        GameObject spawnedEquippedGameObject = Instantiate(pickedUpItem.EquippedPrefab);
 
+        if (pickedUpItem.DisableCollidersOnEquip)
+        {
+            DisableColliders(spawnedEquippedGameObject);
+        }
+
+        IHandSocketBindable handSocketBindable =
+            spawnedEquippedGameObject.GetComponentInChildren<IHandSocketBindable>();
+
+        if (handSocketBindable != null)
+        {
+            handSocketBindable.BindToHandSocket(handSocketTransform);
+        }
+        else
+        {
+            spawnedEquippedGameObject.transform.SetParent(handSocketTransform, false);
+        }
+
+        ApplyEquippedItemState(spawnedEquippedGameObject, pickupHandSide);
+    }
+
+    private void DisableColliders(GameObject equippedGameObject)
+    {
+        if (equippedGameObject == null)
+        {
+            return;
+        }
+
+        Collider[] colliders = equippedGameObject.GetComponentsInChildren<Collider>();
+
+        for (int i = 0; i < colliders.Length; i += 1)
+        {
+            Collider colliderToDisable = colliders[i];
+            if (colliderToDisable != null)
+            {
+                colliderToDisable.enabled = false;
+            }
+        }
+    }
+
+    private void ApplyEquippedItemState(
+        GameObject spawnedEquippedGameObject,
+        PickupHandSide pickupHandSide
+    )
+    {
         if (pickupHandSide == PickupHandSide.Left)
         {
             if (currentlyEquippedLeftHandItemGameObject != null)
@@ -197,7 +229,7 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
                 holdLeftArmTwoBoneIkConstraint
             );
 
-            currentlyEquippedLeftHandItemGameObject = spawnedRevolverGameObject;
+            currentlyEquippedLeftHandItemGameObject = spawnedEquippedGameObject;
             return;
         }
 
@@ -216,131 +248,7 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
             holdRightArmTwoBoneIkConstraint
         );
 
-        currentlyEquippedRightHandItemGameObject = spawnedRevolverGameObject;
-    }
-
-    private void EquipLantern(InteractablePickupItem pickedUpItem, PickupHandSide pickupHandSide)
-    {
-        if (pickedUpItem == null || pickedUpItem.EquippedPrefab == null)
-        {
-            return;
-        }
-
-        if (pickupHandSide == PickupHandSide.Left)
-        {
-            EquipLanternToLeftHand(pickedUpItem.EquippedPrefab);
-            return;
-        }
-
-        EquipLanternToRightHand(pickedUpItem.EquippedPrefab);
-    }
-
-    private void EquipLanternToRightHand(GameObject equippedPrefab)
-    {
-        if (rightHandSocketTransform == null)
-        {
-            return;
-        }
-
-        GameObject spawnedLanternGameObject = SpawnEquippedLantern(
-            equippedPrefab,
-            rightHandSocketTransform
-        );
-
-        if (currentlyEquippedRightHandItemGameObject != null)
-        {
-            Destroy(currentlyEquippedRightHandItemGameObject);
-        }
-
-        isRightHandItemEquipped = true;
-        rightHoldIkWeightVelocity = 0f;
-        rightCurrentHoldIkWeight = 0f;
-
-        ApplyImmediateHoldIkWeight(
-            ref rightCurrentHoldIkWeight,
-            holdRigLayer,
-            holdRightArmTwoBoneIkConstraint
-        );
-
-        LanternHandleFixedJointFollower handleFollower =
-            spawnedLanternGameObject.GetComponentInChildren<LanternHandleFixedJointFollower>();
-
-        if (handleFollower != null)
-        {
-            handleFollower.BindToHandSocket(rightHandSocketTransform);
-        }
-
-        currentlyEquippedRightHandItemGameObject = spawnedLanternGameObject;
-    }
-
-    private void EquipLanternToLeftHand(GameObject equippedPrefab)
-    {
-        if (leftHandSocketTransform == null)
-        {
-            return;
-        }
-
-        GameObject spawnedLanternGameObject = SpawnEquippedLantern(
-            equippedPrefab,
-            leftHandSocketTransform
-        );
-
-        if (currentlyEquippedLeftHandItemGameObject != null)
-        {
-            Destroy(currentlyEquippedLeftHandItemGameObject);
-        }
-
-        isLeftHandItemEquipped = true;
-        leftHoldIkWeightVelocity = 0f;
-        leftCurrentHoldIkWeight = 0f;
-
-        ApplyImmediateHoldIkWeight(
-            ref leftCurrentHoldIkWeight,
-            leftHoldRigLayer,
-            holdLeftArmTwoBoneIkConstraint
-        );
-
-        LanternHandleFixedJointFollower handleFollower =
-            spawnedLanternGameObject.GetComponentInChildren<LanternHandleFixedJointFollower>();
-
-        if (handleFollower != null)
-        {
-            handleFollower.BindToHandSocket(leftHandSocketTransform);
-        }
-
-        currentlyEquippedLeftHandItemGameObject = spawnedLanternGameObject;
-    }
-
-    private GameObject SpawnEquippedLantern(
-        GameObject equippedPrefab,
-        Transform handSocketTransform
-    )
-    {
-        GameObject spawnedLanternGameObject = Instantiate(equippedPrefab);
-
-        BoxCollider spawnedLanternBoxCollider =
-            spawnedLanternGameObject.GetComponent<BoxCollider>();
-        if (spawnedLanternBoxCollider != null)
-        {
-            spawnedLanternBoxCollider.enabled = false;
-        }
-
-        spawnedLanternGameObject.transform.position = handSocketTransform.position;
-        spawnedLanternGameObject.transform.rotation = handSocketTransform.rotation;
-
-        return spawnedLanternGameObject;
-    }
-
-    private GameObject SpawnEquippedRevolver(
-        GameObject equippedPrefab,
-        Transform handSocketTransform
-    )
-    {
-        GameObject spawnedRevolverGameObject = Instantiate(equippedPrefab);
-
-        spawnedRevolverGameObject.transform.SetParent(handSocketTransform, false);
-
-        return spawnedRevolverGameObject;
+        currentlyEquippedRightHandItemGameObject = spawnedEquippedGameObject;
     }
 
     private void UpdateHoldIkWeight(
