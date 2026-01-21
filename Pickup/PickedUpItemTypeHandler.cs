@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Animations.Rigging;
+using UnityEngine.InputSystem;
 
 public sealed class PickedUpItemTypeHandler : MonoBehaviour
 {
@@ -39,8 +40,17 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
     [SerializeField]
     private float holdIkWeightSmoothingSeconds = 0.12f;
 
+    [Header("Drop Input")]
+    [SerializeField]
+    private InputActionReference dropInputActionReference;
+
+    [SerializeField]
+    private Transform dropSpawnTransform;
+
     private GameObject currentlyEquippedRightHandItemGameObject;
     private GameObject currentlyEquippedLeftHandItemGameObject;
+    private InteractablePickupItem currentlyEquippedRightHandPickupItem;
+    private InteractablePickupItem currentlyEquippedLeftHandPickupItem;
     private float rightHoldIkWeightVelocity;
     private float rightCurrentHoldIkWeight;
     private float leftHoldIkWeightVelocity;
@@ -78,6 +88,24 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         if (holdLeftArmTwoBoneIkConstraint != null)
         {
             holdLeftArmTwoBoneIkConstraint.weight = 0f;
+        }
+    }
+
+    private void OnEnable()
+    {
+        if (dropInputActionReference != null)
+        {
+            dropInputActionReference.action.Enable();
+            dropInputActionReference.action.started += HandleDropActionStarted;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (dropInputActionReference != null)
+        {
+            dropInputActionReference.action.started -= HandleDropActionStarted;
+            dropInputActionReference.action.Disable();
         }
     }
 
@@ -152,7 +180,7 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
 
     private void EquipItem(InteractablePickupItem pickedUpItem, PickupHandSide pickupHandSide)
     {
-        if (pickedUpItem == null || pickedUpItem.EquippedPrefab == null)
+        if (pickedUpItem == null || pickedUpItem.PickupItemPrefab == null)
         {
             return;
         }
@@ -195,6 +223,7 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
 
         BindFollowerIfPresent(spawnedItemGameObject, pickedUpItem, rightHandSocketTransform);
         currentlyEquippedRightHandItemGameObject = spawnedItemGameObject;
+        currentlyEquippedRightHandPickupItem = pickedUpItem;
     }
 
     private void EquipItemToLeftHand(InteractablePickupItem pickedUpItem)
@@ -223,6 +252,7 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
 
         BindFollowerIfPresent(spawnedItemGameObject, pickedUpItem, leftHandSocketTransform);
         currentlyEquippedLeftHandItemGameObject = spawnedItemGameObject;
+        currentlyEquippedLeftHandPickupItem = pickedUpItem;
     }
 
     private GameObject SpawnEquippedItem(
@@ -230,12 +260,12 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         Transform handSocketTransform
     )
     {
-        if (pickedUpItem == null || pickedUpItem.EquippedPrefab == null)
+        if (pickedUpItem == null || pickedUpItem.PickupItemPrefab == null)
         {
             return null;
         }
 
-        GameObject spawnedItemGameObject = Instantiate(pickedUpItem.EquippedPrefab);
+        GameObject spawnedItemGameObject = Instantiate(pickedUpItem.PickupItemPrefab);
         DisableItemColliders(spawnedItemGameObject);
 
         if (pickedUpItem.EquippedItemFollowMode == EquippedItemFollowMode.AttachToSocket)
@@ -289,6 +319,148 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         if (handleFollower != null)
         {
             handleFollower.BindToHandSocket(handSocketTransform);
+        }
+    }
+
+    private void HandleDropActionStarted(InputAction.CallbackContext _)
+    {
+        DropEquippedItem();
+    }
+
+    public void DropEquippedItem()
+    {
+        if (isLeftHandItemEquipped)
+        {
+            DropItemFromHand(
+                ref currentlyEquippedLeftHandItemGameObject,
+                ref currentlyEquippedLeftHandPickupItem,
+                PickupHandSide.Left
+            );
+            return;
+        }
+
+        if (isRightHandItemEquipped)
+        {
+            DropItemFromHand(
+                ref currentlyEquippedRightHandItemGameObject,
+                ref currentlyEquippedRightHandPickupItem,
+                PickupHandSide.Right
+            );
+        }
+    }
+
+    private void DropItemFromHand(
+        ref GameObject equippedItemGameObject,
+        ref InteractablePickupItem pickupItem,
+        PickupHandSide handSide
+    )
+    {
+        if (equippedItemGameObject != null)
+        {
+            Destroy(equippedItemGameObject);
+            equippedItemGameObject = null;
+        }
+
+        SpawnDroppedItem(pickupItem);
+        pickupItem = null;
+
+        if (handSide == PickupHandSide.Left)
+        {
+            ClearLeftHandEquippedState();
+        }
+        else
+        {
+            ClearRightHandEquippedState();
+        }
+    }
+
+    private void SpawnDroppedItem(InteractablePickupItem pickupItem)
+    {
+        Transform spawnTransform = ResolveDropSpawnTransform();
+        if (spawnTransform == null)
+        {
+            return;
+        }
+
+        if (
+            pickupItem != null
+            && pickupItem.gameObject != null
+            && !pickupItem.gameObject.activeInHierarchy
+        )
+        {
+            pickupItem.transform.position = spawnTransform.position;
+            pickupItem.transform.rotation = spawnTransform.rotation;
+            pickupItem.gameObject.SetActive(true);
+
+            GroundSnapToSurface snapper = pickupItem.GetComponent<GroundSnapToSurface>();
+            if (snapper != null)
+            {
+                snapper.SnapToSurface();
+            }
+
+            return;
+        }
+
+        if (pickupItem == null || pickupItem.PickupItemPrefab == null)
+        {
+            return;
+        }
+
+        GameObject droppedItem = Instantiate(pickupItem.PickupItemPrefab);
+        droppedItem.transform.position = spawnTransform.position;
+        droppedItem.transform.rotation = spawnTransform.rotation;
+
+        GroundSnapToSurface snapperComponent =
+            droppedItem.GetComponent<GroundSnapToSurface>();
+        if (snapperComponent == null)
+        {
+            snapperComponent = droppedItem.AddComponent<GroundSnapToSurface>();
+        }
+
+        snapperComponent.SnapToSurface();
+    }
+
+    private Transform ResolveDropSpawnTransform()
+    {
+        if (dropSpawnTransform != null)
+        {
+            return dropSpawnTransform;
+        }
+
+        return transform;
+    }
+
+    private void ClearRightHandEquippedState()
+    {
+        isRightHandItemEquipped = false;
+        rightHoldIkWeightVelocity = 0f;
+        rightCurrentHoldIkWeight = 0f;
+
+        if (holdRigLayer != null)
+        {
+            holdRigLayer.weight = 0f;
+        }
+
+        if (holdRightArmTwoBoneIkConstraint != null)
+        {
+            holdRightArmTwoBoneIkConstraint.weight = 0f;
+        }
+    }
+
+    private void ClearLeftHandEquippedState()
+    {
+        isLeftHandItemEquipped = false;
+        leftHoldIkWeightVelocity = 0f;
+        leftCurrentHoldIkWeight = 0f;
+
+        if (leftHoldRigLayer != null)
+        {
+            leftHoldRigLayer.weight = 0f;
+        }
+
+        if (holdLeftArmTwoBoneIkConstraint != null)
+        {
+            holdLeftArmTwoBoneIkConstraint.weight = 0f;
         }
     }
 
