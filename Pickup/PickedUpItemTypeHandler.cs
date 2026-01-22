@@ -280,8 +280,11 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
 
         spawnedItemGameObject.transform.localRotation = Quaternion.identity;
 
-        handSocketTransform.gameObject.GetComponent<FixedJoint>().connectedBody =
-            spawnedItem.PickupHandleRigidbodyToConnectToHandFixedJoint;
+        if (spawnedItem.PickupHandleRigidbodyToConnectToHandFixedJoint)
+        {
+            handSocketTransform.gameObject.GetComponent<FixedJoint>().connectedBody =
+                spawnedItem.PickupHandleRigidbodyToConnectToHandFixedJoint;
+        }
 
         return spawnedItemGameObject;
     }
