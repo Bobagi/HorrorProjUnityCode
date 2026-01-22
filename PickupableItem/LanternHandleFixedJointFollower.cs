@@ -8,13 +8,11 @@ public sealed class LanternHandleFixedJointFollower : MonoBehaviour
     [SerializeField]
     private Transform handleGripPoint;
 
-    [SerializeField]
-    private FixedJoint handleFixedJoint;
-
     private Transform handSocketTransformToFollow;
-    private Rigidbody handSocketRigidbody;
     private Vector3 cachedHandSocketWorldPosition;
     private Quaternion cachedHandSocketWorldRotation;
+    private Vector3 gripPointLocalPosition;
+    private Quaternion gripPointLocalRotation;
 
     public void BindToHandSocket(Transform handSocketTransform)
     {
@@ -25,11 +23,10 @@ public sealed class LanternHandleFixedJointFollower : MonoBehaviour
 
         handSocketTransformToFollow = handSocketTransform;
 
-        handleRigidbody.isKinematic = false;
+        handleRigidbody.isKinematic = true;
         handleRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
 
-        EnsureHandSocketRigidbody();
-        EnsureHandleJoint();
+        CacheGripPointLocalPose();
 
         CacheHandSocketPose();
         ApplyHandlePoseImmediate();
@@ -47,13 +44,18 @@ public sealed class LanternHandleFixedJointFollower : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (handSocketTransformToFollow == null || handSocketRigidbody == null)
+        if (handSocketTransformToFollow == null || handleRigidbody == null)
         {
             return;
         }
 
-        handSocketRigidbody.MoveRotation(cachedHandSocketWorldRotation);
-        handSocketRigidbody.MovePosition(cachedHandSocketWorldPosition);
+        Quaternion targetHandleRotation =
+            cachedHandSocketWorldRotation * Quaternion.Inverse(gripPointLocalRotation);
+        Vector3 targetHandlePosition =
+            cachedHandSocketWorldPosition - targetHandleRotation * gripPointLocalPosition;
+
+        handleRigidbody.MoveRotation(targetHandleRotation);
+        handleRigidbody.MovePosition(targetHandlePosition);
     }
 
     private void CacheHandSocketPose()
@@ -69,55 +71,21 @@ public sealed class LanternHandleFixedJointFollower : MonoBehaviour
             return;
         }
 
-        Quaternion gripToHandleRotation =
-            Quaternion.Inverse(handleGripPoint.rotation) * handleRigidbody.rotation;
-        Vector3 gripToHandleOffset = handleRigidbody.position - handleGripPoint.position;
+        Quaternion targetHandleRotation =
+            cachedHandSocketWorldRotation * Quaternion.Inverse(gripPointLocalRotation);
+        Vector3 targetHandlePosition =
+            cachedHandSocketWorldPosition - targetHandleRotation * gripPointLocalPosition;
 
-        handleRigidbody.position = cachedHandSocketWorldPosition + gripToHandleOffset;
-        handleRigidbody.rotation = cachedHandSocketWorldRotation * gripToHandleRotation;
+        handleRigidbody.position = targetHandlePosition;
+        handleRigidbody.rotation = targetHandleRotation;
     }
 
-    private void EnsureHandSocketRigidbody()
+    private void CacheGripPointLocalPose()
     {
-        if (handSocketRigidbody != null)
-        {
-            return;
-        }
-
-        GameObject handSocketAnchor = new GameObject("LanternHandSocketAnchor");
-        handSocketAnchor.transform.position = handSocketTransformToFollow.position;
-        handSocketAnchor.transform.rotation = handSocketTransformToFollow.rotation;
-
-        handSocketRigidbody = handSocketAnchor.AddComponent<Rigidbody>();
-        handSocketRigidbody.isKinematic = true;
-        handSocketRigidbody.interpolation = RigidbodyInterpolation.Interpolate;
-    }
-
-    private void EnsureHandleJoint()
-    {
-        if (handleFixedJoint == null)
-        {
-            handleFixedJoint = handleRigidbody.GetComponent<FixedJoint>();
-        }
-
-        if (handleFixedJoint == null)
-        {
-            handleFixedJoint = handleRigidbody.gameObject.AddComponent<FixedJoint>();
-        }
-
-        handleFixedJoint.connectedBody = handSocketRigidbody;
-        handleFixedJoint.autoConfigureConnectedAnchor = false;
-        handleFixedJoint.anchor =
-            handleRigidbody.transform.InverseTransformPoint(handleGripPoint.position);
-        handleFixedJoint.connectedAnchor = Vector3.zero;
-    }
-
-    private void OnDisable()
-    {
-        if (handSocketRigidbody != null)
-        {
-            Destroy(handSocketRigidbody.gameObject);
-            handSocketRigidbody = null;
-        }
+        gripPointLocalPosition = handleRigidbody.transform.InverseTransformPoint(
+            handleGripPoint.position
+        );
+        gripPointLocalRotation =
+            Quaternion.Inverse(handleRigidbody.rotation) * handleGripPoint.rotation;
     }
 }
