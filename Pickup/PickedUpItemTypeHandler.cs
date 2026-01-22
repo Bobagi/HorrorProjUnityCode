@@ -215,13 +215,13 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         rightHoldIkWeightVelocity = 0f;
         rightCurrentHoldIkWeight = 0f;
 
+        // Apply immediate IK weight update to avoid popping animation frame when equipping item to hand
         ApplyImmediateHoldIkWeight(
             ref rightCurrentHoldIkWeight,
             holdRigLayer,
             holdRightArmTwoBoneIkConstraint
         );
 
-        BindFollowerIfPresent(spawnedItemGameObject, pickedUpItem, rightHandSocketTransform);
         currentlyEquippedRightHandItemGameObject = spawnedItemGameObject;
         currentlyEquippedRightHandPickupItem = pickedUpItem;
     }
@@ -244,82 +244,46 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         leftHoldIkWeightVelocity = 0f;
         leftCurrentHoldIkWeight = 0f;
 
+        // Apply immediate IK weight update to avoid popping animation frame when equipping item to hand
         ApplyImmediateHoldIkWeight(
             ref leftCurrentHoldIkWeight,
             leftHoldRigLayer,
             holdLeftArmTwoBoneIkConstraint
         );
 
-        BindFollowerIfPresent(spawnedItemGameObject, pickedUpItem, leftHandSocketTransform);
         currentlyEquippedLeftHandItemGameObject = spawnedItemGameObject;
         currentlyEquippedLeftHandPickupItem = pickedUpItem;
     }
 
     private GameObject SpawnEquippedItem(
-        InteractablePickupItem pickedUpItem,
+        InteractablePickupItem originPickedUpItem,
         Transform handSocketTransform
     )
     {
-        if (pickedUpItem == null || pickedUpItem.PickupItemPrefab == null)
+        if (originPickedUpItem == null || originPickedUpItem.PickupItemPrefab == null)
         {
             return null;
         }
 
-        GameObject spawnedItemGameObject = Instantiate(pickedUpItem.PickupItemPrefab);
-        DisableItemColliders(spawnedItemGameObject);
+        GameObject spawnedItemGameObject = Instantiate(originPickedUpItem.PickupItemPrefab);
+        InteractablePickupItem spawnedItem =
+            spawnedItemGameObject.GetComponent<InteractablePickupItem>();
 
-        if (pickedUpItem.EquippedItemFollowMode == EquippedItemFollowMode.AttachToSocket)
-        {
-            spawnedItemGameObject.transform.SetParent(handSocketTransform, false);
-            spawnedItemGameObject.transform.localPosition = Vector3.zero;
-            spawnedItemGameObject.transform.localRotation = Quaternion.identity;
-        }
-        else
-        {
-            spawnedItemGameObject.transform.position = handSocketTransform.position;
-            spawnedItemGameObject.transform.rotation = handSocketTransform.rotation;
-        }
+        spawnedItemGameObject.layer = 7; // 8 - Interactable -> 7 - hand
+
+        spawnedItemGameObject.transform.SetParent(handSocketTransform, false);
+        spawnedItemGameObject.transform.localPosition = new Vector3(
+            0f,
+            spawnedItem.YAxisOffSet,
+            0f
+        );
+
+        spawnedItemGameObject.transform.localRotation = Quaternion.identity;
+
+        handSocketTransform.gameObject.GetComponent<FixedJoint>().connectedBody =
+            spawnedItem.PickupHandleRigidbodyToConnectToHandFixedJoint;
 
         return spawnedItemGameObject;
-    }
-
-    private static void DisableItemColliders(GameObject spawnedItemGameObject)
-    {
-        if (spawnedItemGameObject == null)
-        {
-            return;
-        }
-
-        Collider[] colliders = spawnedItemGameObject.GetComponentsInChildren<Collider>(true);
-        foreach (Collider collider in colliders)
-        {
-            collider.enabled = false;
-        }
-    }
-
-    private static void BindFollowerIfPresent(
-        GameObject spawnedItemGameObject,
-        InteractablePickupItem pickedUpItem,
-        Transform handSocketTransform
-    )
-    {
-        if (
-            spawnedItemGameObject == null
-            || pickedUpItem == null
-            || pickedUpItem.EquippedItemFollowMode != EquippedItemFollowMode.PhysicsFollower
-            || handSocketTransform == null
-        )
-        {
-            return;
-        }
-
-        LanternHandleFixedJointFollower handleFollower =
-            spawnedItemGameObject.GetComponentInChildren<LanternHandleFixedJointFollower>();
-
-        if (handleFollower != null)
-        {
-            handleFollower.BindToHandSocket(handSocketTransform);
-        }
     }
 
     private void HandleDropActionStarted(InputAction.CallbackContext _)
@@ -410,8 +374,7 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         droppedItem.transform.position = spawnTransform.position;
         droppedItem.transform.rotation = spawnTransform.rotation;
 
-        GroundSnapToSurface snapperComponent =
-            droppedItem.GetComponent<GroundSnapToSurface>();
+        GroundSnapToSurface snapperComponent = droppedItem.GetComponent<GroundSnapToSurface>();
         if (snapperComponent == null)
         {
             snapperComponent = droppedItem.AddComponent<GroundSnapToSurface>();

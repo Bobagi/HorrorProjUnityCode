@@ -6,12 +6,6 @@ public enum InteractablePickupItemType
     Revolver = 1,
 }
 
-public enum EquippedItemFollowMode
-{
-    AttachToSocket = 0,
-    PhysicsFollower = 1,
-}
-
 public sealed class InteractablePickupItem : MonoBehaviour
 {
     [SerializeField]
@@ -24,10 +18,13 @@ public sealed class InteractablePickupItem : MonoBehaviour
     private Transform pickupInteractionPoint;
 
     [SerializeField]
-    private GameObject pickupItemPrefab;
+    private Rigidbody pickupHandleRigidbodyToConnectToHandFixedJoint;
 
     [SerializeField]
-    private EquippedItemFollowMode equippedItemFollowMode = EquippedItemFollowMode.AttachToSocket;
+    private float yAxisOffSet = 0f;
+
+    [SerializeField]
+    private GameObject pickupItemPrefab;
 
     [SerializeField]
     private bool destroyGameObjectAfterPickup = true;
@@ -38,15 +35,17 @@ public sealed class InteractablePickupItem : MonoBehaviour
     public string ItemDisplayName => itemDisplayName;
     public Transform PickupInteractionPoint =>
         pickupInteractionPoint != null ? pickupInteractionPoint : transform;
+    public Rigidbody PickupHandleRigidbodyToConnectToHandFixedJoint =>
+        pickupHandleRigidbodyToConnectToHandFixedJoint;
+    public float YAxisOffSet => yAxisOffSet;
     public GameObject PickupItemPrefab => pickupItemPrefab;
-    public EquippedItemFollowMode EquippedItemFollowMode => equippedItemFollowMode;
 
     public bool CanBePickedUp()
     {
         return !hasBeenPickedUp && gameObject.activeInHierarchy;
     }
 
-    public void OnPickedUpBy(GameObject pickerGameObject)
+    public void OnPickedUpBy()
     {
         if (hasBeenPickedUp)
         {

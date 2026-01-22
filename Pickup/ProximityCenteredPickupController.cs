@@ -146,14 +146,16 @@ public sealed class ProximityCenteredPickupController : MonoBehaviour
             yield return new WaitForSeconds(pickupAnimationSeconds);
         }
 
+        // Notify the picked-up item type handler
         if (pickedUpItemTypeHandler != null && pickupItem != null)
         {
             pickedUpItemTypeHandler.HandlePickedUpItem(pickupItem, pickupHandSide);
         }
 
+        // Destroy/disable the pickup item
         if (pickupItem != null)
         {
-            pickupItem.OnPickedUpBy(gameObject);
+            pickupItem.OnPickedUpBy();
         }
 
         isPickupInProgress = false;
