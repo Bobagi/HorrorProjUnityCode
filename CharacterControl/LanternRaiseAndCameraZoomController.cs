@@ -1,13 +1,9 @@
 using Unity.Cinemachine;
 using UnityEngine;
-using UnityEngine.Events;
 using UnityEngine.InputSystem;
 
 public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 {
-    [System.Serializable]
-    public sealed class ItemAimEvent : UnityEvent<InteractablePickupItemType> { }
-
     [Header("Dependencies")]
     [SerializeField]
     private PickedUpItemTypeHandler pickedUpItemTypeHandler;
@@ -61,15 +57,9 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
     [SerializeField]
     private float aimRotationSmoothingSeconds = 0.06f;
 
-    [Header("Aim Events")]
-    [SerializeField]
-    private ItemAimEvent onAimStarted;
-
-    [SerializeField]
-    private ItemAimEvent onAimCanceled;
-
     private bool isRaiseActive;
     private InteractablePickupItemType currentRaiseItemType;
+    private PickupHandSide currentRaiseHandSide;
 
     private float defaultCameraFieldOfView;
     private float defaultCameraDistance;
@@ -81,9 +71,11 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
     private CinemachineThirdPersonFollow cachedThirdPersonFollow;
 
     private bool raiseInputHeld;
+    private IAimItemBehaviour[] aimItemBehaviours;
     private void Awake()
     {
         CacheCameraDefaults();
+        aimItemBehaviours = GetComponents<IAimItemBehaviour>();
     }
 
     private void OnEnable()
@@ -119,9 +111,10 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
     private void Update()
     {
         InteractablePickupItemType itemType = default;
+        PickupHandSide handSide = PickupHandSide.Right;
         bool hasEquippedItemType =
             pickedUpItemTypeHandler != null
-            && pickedUpItemTypeHandler.TryGetEquippedItemType(out itemType);
+            && pickedUpItemTypeHandler.TryGetEquippedItemInfo(out itemType, out handSide);
 
         bool isSupportedItemType = hasEquippedItemType && IsSupportedItemType(itemType);
 
@@ -129,7 +122,7 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
         {
             if (isRaiseActive)
             {
-                TriggerAimCanceled(currentRaiseItemType);
+                TriggerAimCanceled(currentRaiseItemType, currentRaiseHandSide);
             }
 
             isRaiseActive = false;
@@ -151,18 +144,26 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
             if (isRaiseActive)
             {
                 currentRaiseItemType = itemType;
-                TriggerAimStarted(itemType);
+                currentRaiseHandSide = handSide;
+                TriggerAimStarted(itemType, handSide);
             }
             else
             {
-                TriggerAimCanceled(currentRaiseItemType);
+                TriggerAimCanceled(currentRaiseItemType, currentRaiseHandSide);
             }
         }
-        else if (isRaiseActive && currentRaiseItemType != itemType)
+        else if (
+            isRaiseActive
+            && (
+                currentRaiseItemType != itemType
+                || currentRaiseHandSide != handSide
+            )
+        )
         {
-            TriggerAimCanceled(currentRaiseItemType);
+            TriggerAimCanceled(currentRaiseItemType, currentRaiseHandSide);
             currentRaiseItemType = itemType;
-            TriggerAimStarted(itemType);
+            currentRaiseHandSide = handSide;
+            TriggerAimStarted(itemType, handSide);
         }
 
         if (isRaiseActive)
@@ -420,17 +421,37 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
     private void TriggerAimStarted(InteractablePickupItemType itemType)
     {
-        if (onAimStarted != null)
-        {
-            onAimStarted.Invoke(itemType);
-        }
+        TriggerAimStarted(itemType, currentRaiseHandSide);
     }
 
     private void TriggerAimCanceled(InteractablePickupItemType itemType)
     {
-        if (onAimCanceled != null)
+        TriggerAimCanceled(itemType, currentRaiseHandSide);
+    }
+
+    private void TriggerAimStarted(InteractablePickupItemType itemType, PickupHandSide handSide)
+    {
+        if (aimItemBehaviours == null || aimItemBehaviours.Length == 0)
         {
-            onAimCanceled.Invoke(itemType);
+            return;
+        }
+
+        foreach (IAimItemBehaviour behaviour in aimItemBehaviours)
+        {
+            behaviour?.OnAimStarted(itemType, handSide);
+        }
+    }
+
+    private void TriggerAimCanceled(InteractablePickupItemType itemType, PickupHandSide handSide)
+    {
+        if (aimItemBehaviours == null || aimItemBehaviours.Length == 0)
+        {
+            return;
+        }
+
+        foreach (IAimItemBehaviour behaviour in aimItemBehaviours)
+        {
+            behaviour?.OnAimCanceled(itemType, handSide);
         }
     }
 }
