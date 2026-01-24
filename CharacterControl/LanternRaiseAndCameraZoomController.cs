@@ -72,10 +72,15 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
     private bool raiseInputHeld;
     private IAimItemBehaviour[] aimItemBehaviours;
+    private IAimZoomOverrideProvider[] aimZoomOverrideProviders;
+    private bool hasZoomOverride;
+    private float zoomOverrideFieldOfView;
+    private float zoomOverrideCameraDistance;
     private void Awake()
     {
         CacheCameraDefaults();
         aimItemBehaviours = GetComponents<IAimItemBehaviour>();
+        aimZoomOverrideProviders = GetComponents<IAimZoomOverrideProvider>();
     }
 
     private void OnEnable()
@@ -359,6 +364,11 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
         float smoothing = Mathf.Max(0.01f, cameraZoomSmoothingSeconds);
 
+        if (isZoomed && hasZoomOverride)
+        {
+            desiredFieldOfView = zoomOverrideFieldOfView;
+        }
+
         float blendedFov = Mathf.SmoothDamp(
             playerFollowCinemachineCamera.Lens.FieldOfView,
             desiredFieldOfView,
@@ -376,6 +386,11 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
         }
 
         float desiredDistance = isZoomed ? zoomedCameraDistance : defaultCameraDistance;
+
+        if (isZoomed && hasZoomOverride)
+        {
+            desiredDistance = zoomOverrideCameraDistance;
+        }
 
         float blendedDistance = Mathf.SmoothDamp(
             cachedThirdPersonFollow.CameraDistance,
@@ -431,6 +446,8 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
     private void TriggerAimStarted(InteractablePickupItemType itemType, PickupHandSide handSide)
     {
+        ResolveZoomOverride(itemType, handSide);
+
         if (aimItemBehaviours == null || aimItemBehaviours.Length == 0)
         {
             return;
@@ -444,6 +461,8 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
     private void TriggerAimCanceled(InteractablePickupItemType itemType, PickupHandSide handSide)
     {
+        ClearZoomOverride();
+
         if (aimItemBehaviours == null || aimItemBehaviours.Length == 0)
         {
             return;
@@ -453,5 +472,43 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
         {
             behaviour?.OnAimCanceled(itemType, handSide);
         }
+    }
+
+    private void ResolveZoomOverride(InteractablePickupItemType itemType, PickupHandSide handSide)
+    {
+        hasZoomOverride = false;
+        zoomOverrideFieldOfView = zoomedFieldOfView;
+        zoomOverrideCameraDistance = zoomedCameraDistance;
+
+        if (aimZoomOverrideProviders == null || aimZoomOverrideProviders.Length == 0)
+        {
+            return;
+        }
+
+        foreach (IAimZoomOverrideProvider provider in aimZoomOverrideProviders)
+        {
+            if (
+                provider != null
+                && provider.TryGetZoomOverride(
+                    itemType,
+                    handSide,
+                    out float overrideFieldOfView,
+                    out float overrideCameraDistance
+                )
+            )
+            {
+                hasZoomOverride = true;
+                zoomOverrideFieldOfView = overrideFieldOfView;
+                zoomOverrideCameraDistance = overrideCameraDistance;
+                return;
+            }
+        }
+    }
+
+    private void ClearZoomOverride()
+    {
+        hasZoomOverride = false;
+        zoomOverrideFieldOfView = zoomedFieldOfView;
+        zoomOverrideCameraDistance = zoomedCameraDistance;
     }
 }
