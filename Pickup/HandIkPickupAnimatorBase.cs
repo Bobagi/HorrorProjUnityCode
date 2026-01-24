@@ -26,11 +26,15 @@ public abstract class HandIkPickupAnimatorBase : MonoBehaviour
 
     public Transform HandRaisedPositionReferenceTransform => handRaisedPositionReferenceTransform;
 
-    [SerializeField]
-    private Transform handRevolverRaisedPositionReferenceTransform;
+    [System.Serializable]
+    private struct ItemRaisedReference
+    {
+        public InteractablePickupItemType itemType;
+        public Transform raisedReferenceTransform;
+    }
 
-    public Transform HandRevolverRaisedPositionReferenceTransform =>
-        handRevolverRaisedPositionReferenceTransform;
+    [SerializeField]
+    private ItemRaisedReference[] itemRaisedReferences;
 
     [SerializeField]
     [FormerlySerializedAs("rightArmReachTwoBoneIkConstraint")]
@@ -49,6 +53,22 @@ public abstract class HandIkPickupAnimatorBase : MonoBehaviour
 
     private Coroutine currentReachCoroutine;
     private Vector3 handIkTargetPositionVelocity;
+
+    public Transform GetRaisedReferenceForItem(InteractablePickupItemType itemType)
+    {
+        if (itemRaisedReferences != null)
+        {
+            foreach (ItemRaisedReference reference in itemRaisedReferences)
+            {
+                if (reference.itemType == itemType && reference.raisedReferenceTransform != null)
+                {
+                    return reference.raisedReferenceTransform;
+                }
+            }
+        }
+
+        return handRaisedPositionReferenceTransform;
+    }
 
     public IEnumerator PlayReachToTargetCoroutine(
         Transform worldTargetTransform,

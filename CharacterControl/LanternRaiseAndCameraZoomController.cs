@@ -24,11 +24,7 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
     [Header("Item Types")]
     [SerializeField]
-    private InteractablePickupItemType[] supportedItemTypes =
-    {
-        InteractablePickupItemType.Lantern,
-        InteractablePickupItemType.Revolver,
-    };
+    private InteractablePickupItemType[] supportedItemTypes;
 
     [Header("Hold IK Transforms")]
     [SerializeField]
@@ -122,12 +118,14 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
     private void Update()
     {
+        InteractablePickupItemType itemType = default;
         bool hasEquippedItemType =
             pickedUpItemTypeHandler != null
-            && pickedUpItemTypeHandler.TryGetEquippedItemType(out InteractablePickupItemType itemType)
-            && IsSupportedItemType(itemType);
+            && pickedUpItemTypeHandler.TryGetEquippedItemType(out itemType);
 
-        if (!hasEquippedItemType)
+        bool isSupportedItemType = hasEquippedItemType && IsSupportedItemType(itemType);
+
+        if (!isSupportedItemType)
         {
             if (isRaiseActive)
             {
@@ -251,17 +249,10 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
             return null;
         }
 
-        if (itemType == InteractablePickupItemType.Revolver)
-        {
-            Transform revolverReference =
-                handIkPickupAnimator.HandRevolverRaisedPositionReferenceTransform;
-            if (revolverReference != null)
-            {
-                return revolverReference;
-            }
-        }
-
-        return handIkPickupAnimator.HandRaisedPositionReferenceTransform;
+        Transform raisedReference = handIkPickupAnimator.GetRaisedReferenceForItem(itemType);
+        return raisedReference != null
+            ? raisedReference
+            : handIkPickupAnimator.HandRaisedPositionReferenceTransform;
     }
 
     private bool IsSupportedItemType(InteractablePickupItemType itemType)
