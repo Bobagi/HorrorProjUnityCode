@@ -1,9 +1,13 @@
 using Unity.Cinemachine;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.InputSystem;
 
 public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 {
+    [System.Serializable]
+    public sealed class ItemAimEvent : UnityEvent<InteractablePickupItemType> { }
+
     [Header("Dependencies")]
     [SerializeField]
     private PickedUpItemTypeHandler pickedUpItemTypeHandler;
@@ -17,6 +21,14 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
     [SerializeField]
     private InputActionReference raiseLanternInputActionReference;
+
+    [Header("Item Types")]
+    [SerializeField]
+    private InteractablePickupItemType[] supportedItemTypes =
+    {
+        InteractablePickupItemType.Lantern,
+        InteractablePickupItemType.Revolver,
+    };
 
     [Header("Hold IK Transforms")]
     [SerializeField]
@@ -53,7 +65,15 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
     [SerializeField]
     private float aimRotationSmoothingSeconds = 0.06f;
 
+    [Header("Aim Events")]
+    [SerializeField]
+    private ItemAimEvent onAimStarted;
+
+    [SerializeField]
+    private ItemAimEvent onAimCanceled;
+
     private bool isRaiseActive;
+    private InteractablePickupItemType currentRaiseItemType;
 
     private float defaultCameraFieldOfView;
     private float defaultCameraDistance;
@@ -64,6 +84,7 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
     private CinemachineThirdPersonFollow cachedThirdPersonFollow;
 
+    private bool raiseInputHeld;
     private void Awake()
     {
         CacheCameraDefaults();
@@ -88,6 +109,12 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
             raiseLanternInputActionReference.action.Disable();
         }
 
+        raiseInputHeld = false;
+        if (isRaiseActive)
+        {
+            TriggerAimCanceled(currentRaiseItemType);
+        }
+
         isRaiseActive = false;
         MoveHoldTargetsToNormal();
         UpdateCameraZoom(false);
@@ -95,15 +122,18 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
     private void Update()
     {
-        bool isLanternEquipped =
+        bool hasEquippedItemType =
             pickedUpItemTypeHandler != null
-            && (
-                pickedUpItemTypeHandler.IsRightHandItemEquipped
-                || pickedUpItemTypeHandler.IsLeftHandItemEquipped
-            );
+            && pickedUpItemTypeHandler.TryGetEquippedItemType(out InteractablePickupItemType itemType)
+            && IsSupportedItemType(itemType);
 
-        if (!isLanternEquipped)
+        if (!hasEquippedItemType)
         {
+            if (isRaiseActive)
+            {
+                TriggerAimCanceled(currentRaiseItemType);
+            }
+
             isRaiseActive = false;
             MoveHoldTargetsToNormal();
             UpdateCameraZoom(false);
@@ -115,9 +145,31 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
             pickedUpItemTypeHandler.setWeight(1f);
         }
 
+        bool shouldRaise = raiseInputHeld || (keepHandRaised && isRaiseActive);
+
+        if (shouldRaise != isRaiseActive)
+        {
+            isRaiseActive = shouldRaise;
+            if (isRaiseActive)
+            {
+                currentRaiseItemType = itemType;
+                TriggerAimStarted(itemType);
+            }
+            else
+            {
+                TriggerAimCanceled(currentRaiseItemType);
+            }
+        }
+        else if (isRaiseActive && currentRaiseItemType != itemType)
+        {
+            TriggerAimCanceled(currentRaiseItemType);
+            currentRaiseItemType = itemType;
+            TriggerAimStarted(itemType);
+        }
+
         if (isRaiseActive)
         {
-            MoveHoldTargetsToRaised();
+            MoveHoldTargetsToRaised(itemType);
         }
         else
         {
@@ -139,13 +191,13 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
     private void HandleRaiseStarted(InputAction.CallbackContext _)
     {
-        isRaiseActive = true;
+        raiseInputHeld = true;
     }
 
     private void HandleRaiseCanceled(InputAction.CallbackContext _)
     {
         if (!keepHandRaised)
-            isRaiseActive = false;
+            raiseInputHeld = false;
     }
 
     private void MoveHoldTargetsToNormal()
@@ -169,25 +221,65 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
         );
     }
 
-    private void MoveHoldTargetsToRaised()
+    private void MoveHoldTargetsToRaised(InteractablePickupItemType itemType)
     {
+        Transform rightRaisedReference = ResolveRaisedReference(rightHandIkPickupAnimator, itemType);
+        Transform leftRaisedReference = ResolveRaisedReference(leftHandIkPickupAnimator, itemType);
+
         MoveHoldTargetTowards(
             rightHandIkPickupAnimator != null
                 ? rightHandIkPickupAnimator.HandIkTargetTransform
                 : null,
-            rightHandIkPickupAnimator != null
-                ? rightHandIkPickupAnimator.HandRaisedPositionReferenceTransform
-                : null
+            rightRaisedReference
         );
 
         MoveHoldTargetTowards(
             leftHandIkPickupAnimator != null
                 ? leftHandIkPickupAnimator.HandIkTargetTransform
                 : null,
-            leftHandIkPickupAnimator != null
-                ? leftHandIkPickupAnimator.HandRaisedPositionReferenceTransform
-                : null
+            leftRaisedReference
         );
+    }
+
+    private Transform ResolveRaisedReference(
+        HandIkPickupAnimatorBase handIkPickupAnimator,
+        InteractablePickupItemType itemType
+    )
+    {
+        if (handIkPickupAnimator == null)
+        {
+            return null;
+        }
+
+        if (itemType == InteractablePickupItemType.Revolver)
+        {
+            Transform revolverReference =
+                handIkPickupAnimator.HandRevolverRaisedPositionReferenceTransform;
+            if (revolverReference != null)
+            {
+                return revolverReference;
+            }
+        }
+
+        return handIkPickupAnimator.HandRaisedPositionReferenceTransform;
+    }
+
+    private bool IsSupportedItemType(InteractablePickupItemType itemType)
+    {
+        if (supportedItemTypes == null || supportedItemTypes.Length == 0)
+        {
+            return true;
+        }
+
+        foreach (InteractablePickupItemType supportedType in supportedItemTypes)
+        {
+            if (supportedType == itemType)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void MoveHoldTargetTowards(Transform holdTargetTransform, Transform referenceTransform)
@@ -299,6 +391,22 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
             );
 
             thirdPersonController.transform.rotation = Quaternion.Euler(0f, smoothedYaw, 0f);
+        }
+    }
+
+    private void TriggerAimStarted(InteractablePickupItemType itemType)
+    {
+        if (onAimStarted != null)
+        {
+            onAimStarted.Invoke(itemType);
+        }
+    }
+
+    private void TriggerAimCanceled(InteractablePickupItemType itemType)
+    {
+        if (onAimCanceled != null)
+        {
+            onAimCanceled.Invoke(itemType);
         }
     }
 }

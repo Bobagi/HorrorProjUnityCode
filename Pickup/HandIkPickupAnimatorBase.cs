@@ -27,6 +27,12 @@ public abstract class HandIkPickupAnimatorBase : MonoBehaviour
     public Transform HandRaisedPositionReferenceTransform => handRaisedPositionReferenceTransform;
 
     [SerializeField]
+    private Transform handRevolverRaisedPositionReferenceTransform;
+
+    public Transform HandRevolverRaisedPositionReferenceTransform =>
+        handRevolverRaisedPositionReferenceTransform;
+
+    [SerializeField]
     [FormerlySerializedAs("rightArmReachTwoBoneIkConstraint")]
     private TwoBoneIKConstraint handReachTwoBoneIkConstraint;
 

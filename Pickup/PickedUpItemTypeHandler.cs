@@ -61,6 +61,24 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
     public bool IsRightHandItemEquipped => isRightHandItemEquipped;
     public bool IsLeftHandItemEquipped => isLeftHandItemEquipped;
 
+    public bool TryGetEquippedItemType(out InteractablePickupItemType itemType)
+    {
+        if (currentlyEquippedRightHandPickupItem != null)
+        {
+            itemType = currentlyEquippedRightHandPickupItem.ItemType;
+            return true;
+        }
+
+        if (currentlyEquippedLeftHandPickupItem != null)
+        {
+            itemType = currentlyEquippedLeftHandPickupItem.ItemType;
+            return true;
+        }
+
+        itemType = InteractablePickupItemType.Lantern;
+        return false;
+    }
+
     private void Awake()
     {
         isRightHandItemEquipped = false;
