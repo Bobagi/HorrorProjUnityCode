@@ -171,7 +171,7 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
         }
         else
         {
-            MoveHoldTargetsToNormal();
+            MoveHoldTargetsToNormal(itemType);
         }
 
         UpdateCameraZoom(isRaiseActive);
@@ -219,6 +219,23 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
         );
     }
 
+    private void MoveHoldTargetsToNormal(InteractablePickupItemType itemType)
+    {
+        MoveHoldTargetTowards(
+            rightHandIkPickupAnimator != null
+                ? rightHandIkPickupAnimator.HandIkTargetTransform
+                : null,
+            ResolveRelaxedReference(rightHandIkPickupAnimator, itemType)
+        );
+
+        MoveHoldTargetTowards(
+            leftHandIkPickupAnimator != null
+                ? leftHandIkPickupAnimator.HandIkTargetTransform
+                : null,
+            ResolveRelaxedReference(leftHandIkPickupAnimator, itemType)
+        );
+    }
+
     private void MoveHoldTargetsToRaised(InteractablePickupItemType itemType)
     {
         Transform rightRaisedReference = ResolveRaisedReference(rightHandIkPickupAnimator, itemType);
@@ -253,6 +270,22 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
         return raisedReference != null
             ? raisedReference
             : handIkPickupAnimator.HandRaisedPositionReferenceTransform;
+    }
+
+    private Transform ResolveRelaxedReference(
+        HandIkPickupAnimatorBase handIkPickupAnimator,
+        InteractablePickupItemType itemType
+    )
+    {
+        if (handIkPickupAnimator == null)
+        {
+            return null;
+        }
+
+        Transform relaxedReference = handIkPickupAnimator.GetRelaxedReferenceForItem(itemType);
+        return relaxedReference != null
+            ? relaxedReference
+            : handIkPickupAnimator.HandNormalPositionReferenceTransform;
     }
 
     private bool IsSupportedItemType(InteractablePickupItemType itemType)

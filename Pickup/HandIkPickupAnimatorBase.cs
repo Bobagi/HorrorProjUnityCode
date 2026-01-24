@@ -21,6 +21,13 @@ public abstract class HandIkPickupAnimatorBase : MonoBehaviour
 
     public Transform HandNormalPositionReferenceTransform => handNormalPositionReferenceTransform;
 
+    [System.Serializable]
+    private struct ItemRelaxedReference
+    {
+        public InteractablePickupItemType itemType;
+        public Transform relaxedReferenceTransform;
+    }
+
     [SerializeField]
     private Transform handRaisedPositionReferenceTransform;
 
@@ -32,6 +39,9 @@ public abstract class HandIkPickupAnimatorBase : MonoBehaviour
         public InteractablePickupItemType itemType;
         public Transform raisedReferenceTransform;
     }
+
+    [SerializeField]
+    private ItemRelaxedReference[] itemRelaxedReferences;
 
     [SerializeField]
     private ItemRaisedReference[] itemRaisedReferences;
@@ -68,6 +78,22 @@ public abstract class HandIkPickupAnimatorBase : MonoBehaviour
         }
 
         return handRaisedPositionReferenceTransform;
+    }
+
+    public Transform GetRelaxedReferenceForItem(InteractablePickupItemType itemType)
+    {
+        if (itemRelaxedReferences != null)
+        {
+            foreach (ItemRelaxedReference reference in itemRelaxedReferences)
+            {
+                if (reference.itemType == itemType && reference.relaxedReferenceTransform != null)
+                {
+                    return reference.relaxedReferenceTransform;
+                }
+            }
+        }
+
+        return handNormalPositionReferenceTransform;
     }
 
     public IEnumerator PlayReachToTargetCoroutine(
