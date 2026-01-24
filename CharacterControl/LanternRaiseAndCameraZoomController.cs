@@ -4,6 +4,17 @@ using UnityEngine.InputSystem;
 
 public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 {
+    [System.Serializable]
+    private struct AimProfile
+    {
+        public InteractablePickupItemType itemType;
+        public PickupHandSide handSide;
+        public bool overrideZoom;
+        public float zoomedFieldOfView;
+        public float zoomedCameraDistance;
+        public GameObject reticleGameObject;
+    }
+
     [Header("Dependencies")]
     [SerializeField]
     private PickedUpItemTypeHandler pickedUpItemTypeHandler;
@@ -57,6 +68,10 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
     [SerializeField]
     private float aimRotationSmoothingSeconds = 0.06f;
 
+    [Header("Aim Profiles")]
+    [SerializeField]
+    private AimProfile[] aimProfiles;
+
     private bool isRaiseActive;
     private InteractablePickupItemType currentRaiseItemType;
     private PickupHandSide currentRaiseHandSide;
@@ -71,16 +86,12 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
     private CinemachineThirdPersonFollow cachedThirdPersonFollow;
 
     private bool raiseInputHeld;
-    private IAimItemBehaviour[] aimItemBehaviours;
-    private IAimZoomOverrideProvider[] aimZoomOverrideProviders;
-    private bool hasZoomOverride;
-    private float zoomOverrideFieldOfView;
-    private float zoomOverrideCameraDistance;
+    private bool hasActiveAimProfile;
+    private AimProfile activeAimProfile;
+    private GameObject activeReticle;
     private void Awake()
     {
         CacheCameraDefaults();
-        aimItemBehaviours = GetComponents<IAimItemBehaviour>();
-        aimZoomOverrideProviders = GetComponents<IAimZoomOverrideProvider>();
     }
 
     private void OnEnable()
@@ -109,6 +120,7 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
         }
 
         isRaiseActive = false;
+        DeactivateAimProfile();
         MoveHoldTargetsToNormal();
         UpdateCameraZoom(false);
     }
@@ -446,69 +458,65 @@ public sealed class LanternRaiseAndCameraZoomController : MonoBehaviour
 
     private void TriggerAimStarted(InteractablePickupItemType itemType, PickupHandSide handSide)
     {
-        ResolveZoomOverride(itemType, handSide);
-
-        if (aimItemBehaviours == null || aimItemBehaviours.Length == 0)
-        {
-            return;
-        }
-
-        foreach (IAimItemBehaviour behaviour in aimItemBehaviours)
-        {
-            behaviour?.OnAimStarted(itemType, handSide);
-        }
+        ActivateAimProfile(itemType, handSide);
     }
 
     private void TriggerAimCanceled(InteractablePickupItemType itemType, PickupHandSide handSide)
     {
-        ClearZoomOverride();
-
-        if (aimItemBehaviours == null || aimItemBehaviours.Length == 0)
-        {
-            return;
-        }
-
-        foreach (IAimItemBehaviour behaviour in aimItemBehaviours)
-        {
-            behaviour?.OnAimCanceled(itemType, handSide);
-        }
+        DeactivateAimProfile();
     }
 
-    private void ResolveZoomOverride(InteractablePickupItemType itemType, PickupHandSide handSide)
+    private void ActivateAimProfile(InteractablePickupItemType itemType, PickupHandSide handSide)
     {
-        hasZoomOverride = false;
-        zoomOverrideFieldOfView = zoomedFieldOfView;
-        zoomOverrideCameraDistance = zoomedCameraDistance;
+        DeactivateAimProfile();
 
-        if (aimZoomOverrideProviders == null || aimZoomOverrideProviders.Length == 0)
+        if (aimProfiles == null || aimProfiles.Length == 0)
         {
             return;
         }
 
-        foreach (IAimZoomOverrideProvider provider in aimZoomOverrideProviders)
+        foreach (AimProfile profile in aimProfiles)
         {
-            if (
-                provider != null
-                && provider.TryGetZoomOverride(
-                    itemType,
-                    handSide,
-                    out float overrideFieldOfView,
-                    out float overrideCameraDistance
-                )
-            )
+            if (profile.itemType == itemType && profile.handSide == handSide)
             {
-                hasZoomOverride = true;
-                zoomOverrideFieldOfView = overrideFieldOfView;
-                zoomOverrideCameraDistance = overrideCameraDistance;
+                hasActiveAimProfile = true;
+                activeAimProfile = profile;
+
+                if (profile.reticleGameObject != null)
+                {
+                    activeReticle = profile.reticleGameObject;
+                    activeReticle.SetActive(true);
+                }
+
                 return;
             }
         }
     }
 
-    private void ClearZoomOverride()
+    private void DeactivateAimProfile()
     {
-        hasZoomOverride = false;
-        zoomOverrideFieldOfView = zoomedFieldOfView;
-        zoomOverrideCameraDistance = zoomedCameraDistance;
+        if (activeReticle != null)
+        {
+            activeReticle.SetActive(false);
+            activeReticle = null;
+        }
+
+        hasActiveAimProfile = false;
+        activeAimProfile = default;
+    }
+
+    private bool hasZoomOverride
+    {
+        get { return hasActiveAimProfile && activeAimProfile.overrideZoom; }
+    }
+
+    private float zoomOverrideFieldOfView
+    {
+        get { return activeAimProfile.zoomedFieldOfView; }
+    }
+
+    private float zoomOverrideCameraDistance
+    {
+        get { return activeAimProfile.zoomedCameraDistance; }
     }
 }
