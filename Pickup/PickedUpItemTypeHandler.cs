@@ -51,6 +51,8 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
     private GameObject currentlyEquippedLeftHandItemGameObject;
     private InteractablePickupItem currentlyEquippedRightHandPickupItem;
     private InteractablePickupItem currentlyEquippedLeftHandPickupItem;
+    private InteractablePickupItemType rightEquippedItemType;
+    private InteractablePickupItemType leftEquippedItemType;
     private float rightHoldIkWeightVelocity;
     private float rightCurrentHoldIkWeight;
     private float leftHoldIkWeightVelocity;
@@ -61,10 +63,54 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
     public bool IsRightHandItemEquipped => isRightHandItemEquipped;
     public bool IsLeftHandItemEquipped => isLeftHandItemEquipped;
 
+    public bool TryGetEquippedItemInfo(
+        out InteractablePickupItemType itemType,
+        out PickupHandSide handSide
+    )
+    {
+        if (isRightHandItemEquipped)
+        {
+            itemType = rightEquippedItemType;
+            handSide = PickupHandSide.Right;
+            return true;
+        }
+
+        if (isLeftHandItemEquipped)
+        {
+            itemType = leftEquippedItemType;
+            handSide = PickupHandSide.Left;
+            return true;
+        }
+
+        itemType = InteractablePickupItemType.Lantern;
+        handSide = PickupHandSide.Right;
+        return false;
+    }
+
+    public bool TryGetEquippedItemType(out InteractablePickupItemType itemType)
+    {
+        if (isRightHandItemEquipped)
+        {
+            itemType = rightEquippedItemType;
+            return true;
+        }
+
+        if (isLeftHandItemEquipped)
+        {
+            itemType = leftEquippedItemType;
+            return true;
+        }
+
+        itemType = InteractablePickupItemType.Lantern;
+        return false;
+    }
+
     private void Awake()
     {
         isRightHandItemEquipped = false;
         isLeftHandItemEquipped = false;
+        rightEquippedItemType = InteractablePickupItemType.Lantern;
+        leftEquippedItemType = InteractablePickupItemType.Lantern;
         rightHoldIkWeightVelocity = 0f;
         rightCurrentHoldIkWeight = 0f;
         leftHoldIkWeightVelocity = 0f;
@@ -224,6 +270,7 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
 
         currentlyEquippedRightHandItemGameObject = spawnedItemGameObject;
         currentlyEquippedRightHandPickupItem = pickedUpItem;
+        rightEquippedItemType = pickedUpItem.ItemType;
     }
 
     private void EquipItemToLeftHand(InteractablePickupItem pickedUpItem)
@@ -253,6 +300,7 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
 
         currentlyEquippedLeftHandItemGameObject = spawnedItemGameObject;
         currentlyEquippedLeftHandPickupItem = pickedUpItem;
+        leftEquippedItemType = pickedUpItem.ItemType;
     }
 
     private GameObject SpawnEquippedItem(
@@ -401,6 +449,7 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         isRightHandItemEquipped = false;
         rightHoldIkWeightVelocity = 0f;
         rightCurrentHoldIkWeight = 0f;
+        rightEquippedItemType = InteractablePickupItemType.Lantern;
 
         if (holdRigLayer != null)
         {
@@ -418,6 +467,7 @@ public sealed class PickedUpItemTypeHandler : MonoBehaviour
         isLeftHandItemEquipped = false;
         leftHoldIkWeightVelocity = 0f;
         leftCurrentHoldIkWeight = 0f;
+        leftEquippedItemType = InteractablePickupItemType.Lantern;
 
         if (leftHoldRigLayer != null)
         {
